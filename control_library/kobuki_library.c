@@ -22,7 +22,7 @@ int32_t kobukiSensorPoll(KobukiSensors_t* const	sensors){
     // We know that the maximum size of the packet is less than 140 based on documentation
 	uint8_t packet[140] = {0};
 
-	status = kobuki_uart_recv(packet);
+	status = kobuki_uart_recv(&packet[0]);
 
     if (status < 0) {
         return status;

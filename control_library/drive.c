@@ -39,8 +39,8 @@ int main(void) {
 
 		// read sensors from robot
 		if (kobukiSensorPoll(&sensors) < 0) continue;
-		
-		
+	
+	
 		// handle states
 		switch(state) {
 			
@@ -65,7 +65,7 @@ int main(void) {
 					state = OFF;
 				} else {
 					// perform state-specific actions here
-					kobukiDriveDirect(100, 100);
+					kobukiDriveDirect(200, 200);
 					state = DRIVING;
 				}
 				
