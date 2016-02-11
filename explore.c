@@ -76,6 +76,7 @@ PyObject* distance;
 static bool duck_detect_left() {
   // PyObject* py_msg = PyString_FromString(img_path);
   // PyObject* args = PyTuple_Pack(1,py_msg);
+  return false;
   PyObject* myResult = PyObject_CallObject(detect_left, NULL);
   double result = PyFloat_AsDouble(myResult);
   return result;
@@ -84,6 +85,7 @@ static bool duck_detect_left() {
 static bool duck_detect_right() {
   // PyObject* py_msg = PyString_FromString(img_path);
   // PyObject* args = PyTuple_Pack(1,py_msg);
+  return false;
   PyObject* myResult = PyObject_CallObject(detect_right, NULL);
   double result = PyFloat_AsDouble(myResult);
   return result;
@@ -92,6 +94,7 @@ static bool duck_detect_right() {
 static bool duck_centered() {
   // PyObject* py_msg = PyString_FromString(img_path);
   // PyObject* args = PyTuple_Pack(1,py_msg);
+  return false;
   PyObject* myResult = PyObject_CallObject(centered, NULL);
   double result = PyFloat_AsDouble(myResult);
   return result;
@@ -101,6 +104,7 @@ static float duck_dist() {
   // once the duck is centered, get the distance
   // PyObject* py_msg = PyString_FromString(img_path);
   // PyObject* args = PyTuple_Pack(1,py_msg);
+  return 0;
   PyObject* myResult = PyObject_CallObject(distance, NULL);
   double result = PyFloat_AsDouble(myResult);
   return result;
@@ -174,7 +178,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
     // loop forever, running state machine
     const int sleep_interval_in_ms = 10;
     while (1) {
-	printf("STATE: %d\n", state);
+	// printf("STATE: %d\n", state);
 
         // usleep takesleep in microseconds
         usleep(sleep_interval_in_ms * 1000);
@@ -188,6 +192,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
         case OFF: {
             // transition logic
             if (isButtonPressed(&sensors)) {
+		printf("driving\n");
                 state = DRIVE_STRAIGHT;
                 new_encoder = sensors.leftWheelEncoder;
             } else {
@@ -204,20 +209,24 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
                 state = OFF;
 
             } else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
-                state = ROTATING;
+           	printf("rotating\n");
+     		state = ROTATING;
                 kobukiDriveDirect(0, 0);
                 //  total_rotated = 0;
 
             } else if (duck_centered()) {
+		printf("approaching\n");
                 state = APPROACH;
                 kobukiDriveDirect(0, 0);
 
             } else if (duck_detect_left()) {
+		printf("rotate left\n");
                 state = ROTATE_LEFT;
                 kobukiDriveDirect(0, 0);
                 // total_rotated = 0;
 
             } else if (duck_detect_right()) {
+		printf("rotate right\n");
                 state = ROTATE_RIGHT;
                 kobukiDriveDirect(0, 0);
                 // total_rotated = 0;
@@ -241,24 +250,28 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
                 state = OFF;
 
             } else if (duck_centered()) {
+		printf("approaching\n");
                 state = APPROACH;
                 kobukiDriveDirect(0, 0);
                 started_rotation = false;
 
             } else if (duck_detect_left()) {
+		printf("rotate left\n");
                 state = ROTATE_LEFT;
                 kobukiDriveDirect(0, 0);
                 started_rotation = false;
 
             } else if (duck_detect_right()) {
+		printf("rotate right\n");
                 state = ROTATE_RIGHT;
                 kobukiDriveDirect(0, 0);
                 started_rotation = false;
 
-            } else if (((float)(start_time - clock()) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+            } else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
                 kobukiTurnRightFixed();
 
             } else {
+		printf("driving straight\n");
                 state = DRIVE_STRAIGHT;
                 kobukiDriveDirect(0, 0);
                 started_rotation = false;
@@ -275,6 +288,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
                 state = OFF;
 
             } else if (duck_centered()) {
+		printf("approaching\n");
                 kobukiDriveDirect(0, 0);
                 state = APPROACH;
 
@@ -293,6 +307,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
                 state = OFF;
 
             } else if (duck_centered()) {
+		printf("approaching\n");
                 kobukiDriveDirect(0, 0);
                 state = APPROACH;
 
