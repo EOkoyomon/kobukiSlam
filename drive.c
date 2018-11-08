@@ -30,7 +30,7 @@ int main(void) {
 	// configure initial state
 	robot_state_t state = OFF;
 	KobukiSensors_t sensors = {0};
-	const int sleep_interval_in_ms = 100;
+	const int sleep_interval_in_ms = 10;
 	
 	// loop forever, running state machine
 	while (1) {
@@ -47,10 +47,11 @@ int main(void) {
 			case OFF: {
 				// transition logic
 				if (isButtonPressed(&sensors)) {
-					printf("Button pressed.");
+					printf("Button pressed.\n");
 					state = DRIVING;
 				} else {
 					// perform state-specific actions here
+					kobukiDriveDirect(0, 0);
 					state = OFF;
 				}
 				
@@ -60,7 +61,7 @@ int main(void) {
 			case DRIVING: {
 				// transition logic
 				if (isButtonPressed(&sensors)) {
-					printf("Button pressed.");
+					printf("Button pressed.\n");
 					state = OFF;
 				} else {
 					// perform state-specific actions here

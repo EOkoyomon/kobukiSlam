@@ -29,7 +29,7 @@ int kobuki_uart_init(void) {
 	O_NOCTTY - When set and path identifies a terminal device, open() shall not cause the terminal device to become the controlling terminal for the process.
 	O_NDELAY - Enables nonblocking mode. When set, read or write requests on the file can return immediately with a failure status instead of blocking.
 	*/
-	uart_fd = open(serial_filepath, O_RDWR | O_NOCTTY | O_NDELAY);
+	uart_fd = open(serial_filepath, O_RDWR | O_NOCTTY); // | O_NDELAY);
 
 	if (uart_fd == -1) {
 		printf("ERROR - cannot open serial port\n\t%s\n", strerror(errno));
@@ -95,7 +95,6 @@ int kobuki_uart_send(uint8_t* payload, uint8_t len) {
 		}
 
 		fsync(uart_fd);
-		printf("Sent on uart\n");
 		return count;
 	}
 
@@ -128,10 +127,12 @@ int kobuki_uart_recv(uint8_t* buffer) {
 
 	while (1) {
 
+//		buffer[p_index] = readBuff[i];
+//		i++;
 		status = read(uart_fd, &buffer[p_index], 1);
 		if (status == 0) {
 			// try again
-			printf("No data - will try again.\n");
+			printf("No data from uart receive - will try again.\n");
 			return -1;
 		} else if (status < 0) {
 			printf("ERROR - received error while reading from uart\n\t%s\n", strerror(errno));
@@ -177,13 +178,13 @@ int kobuki_uart_recv(uint8_t* buffer) {
 				byteBuffer = buffer[payloadSize+3];
 				if (calcuatedCS == byteBuffer) {
 					num_checksum_failures = 0;
-					printf("stop receive loop - got payload - size: %d\n", payloadSize);
+					// printf("Got payload from uart - size: %d\n", payloadSize);
 					return payloadSize + 3;
 				} else {
 					state = wait_until_HDR;
 					p_index = 0;
 					if (num_checksum_failures == 3) {
-						printf("ERROR - checksum did not match data 4 times");
+						printf("ERROR - checksum did not match data 4 times\n");
 						return -1500;
 					}
 					num_checksum_failures++;
@@ -197,7 +198,8 @@ int kobuki_uart_recv(uint8_t* buffer) {
 		}
 
 	}
-	return status;
+
+	return -1;
 
 }
 
