@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <errno.h>
 
 /* 
 https://www.raspberrypi.org/documentation/hardware/raspberrypi/schematics/rpi_SCH_3b_1p2_reduced.pdf
@@ -17,7 +18,7 @@ Pin 10 (GPIO15) is set to UART0_RXD - Receive line
 */
 
 /* Serial file on Raspberry Pi Model 3. */
-const char serial_filepath[] = "/dev/ttys0";
+const char serial_filepath[] = "/dev/ttyS0";
 int uart_fd = -1;
 
 /* Returns < 0 on error. */
@@ -31,7 +32,7 @@ int kobuki_uart_init(void) {
 	uart_fd = open(serial_filepath, O_RDWR | O_NOCTTY | O_NDELAY);
 
 	if (uart_fd == -1) {
-		printf("ERROR - cannot open serial port\n");
+		printf("ERROR - cannot open serial port\n\t%s\n", strerror(errno));
 		return -1;
 	}
 
@@ -82,16 +83,19 @@ int kobuki_uart_send(uint8_t* payload, uint8_t len) {
 	uint8_t writeData[256] = {0};
 
 	writeData[0] = 0xAA;
-  writeData[1] = 0x55;
-  writeData[2] = len;
-  memcpy(writeData + 3, payload, len);
+	writeData[1] = 0x55;
+	writeData[2] = len;
+	memcpy(writeData + 3, payload, len);
 	writeData[3+len] = checksum_create(writeData + 2, len + 1);
 
 	if (uart_fd != -1) {
 		int count = write(uart_fd, writeData, len+4);
 		if (count < 0) {
-			printf("ERROR - failed to transmit on uart\n");
+			printf("ERROR - failed to transmit on uart\n\t%s\n", strerror(errno));
 		}
+
+		fsync(uart_fd);
+		printf("Sent on uart\n");
 		return count;
 	}
 
@@ -119,15 +123,18 @@ int kobuki_uart_recv(uint8_t* buffer) {
 	status = fsync(uart_fd);
 
 	int num_checksum_failures = 0;
-  uint8_t p_index = 0;
+  	uint8_t p_index = 0;
+
 
 	while (1) {
 
 		status = read(uart_fd, &buffer[p_index], 1);
 		if (status == 0) {
-			continue;
+			// try again
+			printf("No data - will try again.\n");
+			return -1;
 		} else if (status < 0) {
-			printf("ERROR - received error while reading from uart");
+			printf("ERROR - received error while reading from uart\n\t%s\n", strerror(errno));
 			return status;
 		}
 
@@ -170,6 +177,7 @@ int kobuki_uart_recv(uint8_t* buffer) {
 				byteBuffer = buffer[payloadSize+3];
 				if (calcuatedCS == byteBuffer) {
 					num_checksum_failures = 0;
+					printf("stop receive loop - got payload - size: %d\n", payloadSize);
 					return payloadSize + 3;
 				} else {
 					state = wait_until_HDR;

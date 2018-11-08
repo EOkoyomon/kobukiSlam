@@ -4,10 +4,10 @@ CC=gcc
 SRC=$(wildcard *.c)
 
 main: $(filter-out drive.c , $(SRC))
-	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+	gcc -lm -o $@ $^ $(CFLAGS) $(LIBS)
 
 drive: $(filter-out main.c , $(SRC))
-	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+	gcc -lm -o $@ $^ $(CFLAGS) $(LIBS)
 
 clean:
 	rm main drive
