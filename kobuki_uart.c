@@ -1,9 +1,11 @@
+#include "kobuki_uart.h"
+
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
-
-#include "kobuki_uart.h"
 
 /* 
 https://www.raspberrypi.org/documentation/hardware/raspberrypi/schematics/rpi_SCH_3b_1p2_reduced.pdf
@@ -15,7 +17,7 @@ Pin 10 (GPIO15) is set to UART0_RXD - Receive line
 */
 
 /* Serial file on Raspberry Pi Model 3. */
-const char[] serial_filepath = "/dev/ttys0";
+const char serial_filepath[] = "/dev/ttys0";
 int uart_fd = -1;
 
 /* Returns < 0 on error. */
@@ -48,7 +50,7 @@ int kobuki_uart_init(void) {
 
 	/* For Kobuki - Baud rate: 115200 BPS, Data bit: 8 bit, Stop bit: 1 bit, No Parity. */	
 	struct termios options;
-	tcpgetattr(uart_fd, &options);
+	tcgetattr(uart_fd, &options);
 	options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;
 	options.c_iflag = IGNPAR;
 	options.c_oflag = 0;
@@ -121,10 +123,10 @@ int kobuki_uart_recv(uint8_t* buffer) {
 
 	while (1) {
 
-		status = read(uart_fd, &packetBuffer[p_index], 1);
+		status = read(uart_fd, &buffer[p_index], 1);
 		if (status == 0) {
 			continue;
-		} elif (status < 0) {
+		} else if (status < 0) {
 			printf("ERROR - received error while reading from uart");
 			return status;
 		}
@@ -133,7 +135,7 @@ int kobuki_uart_recv(uint8_t* buffer) {
 			case wait_until_HDR: {
 				p_index++;
 
-				if (p_index == 2 && packetBuffer[0]==0xAA && packetBuffer[1]==0x55) {
+				if (p_index == 2 && buffer[0]==0xAA && buffer[1]==0x55) {
 					state = read_length;
 				} else if (p_index == 2) {
 					p_index = 0;
@@ -146,7 +148,7 @@ int kobuki_uart_recv(uint8_t* buffer) {
 			}
 
 			case read_length: {
-				payloadSize = packetBuffer[p_index];
+				payloadSize = buffer[p_index];
 				byteBuffer = payloadSize;
 				p_index++;
 				state = read_payload;
@@ -164,8 +166,8 @@ int kobuki_uart_recv(uint8_t* buffer) {
 			}
 
 			case read_checksum: {
-				calcuatedCS = checksum_create(packetBuffer + 2, payloadSize + 1);
-				byteBuffer = packetBuffer[payloadSize+3];
+				calcuatedCS = checksum_create(buffer + 2, payloadSize + 1);
+				byteBuffer = buffer[payloadSize+3];
 				if (calcuatedCS == byteBuffer) {
 					num_checksum_failures = 0;
 					return payloadSize + 3;

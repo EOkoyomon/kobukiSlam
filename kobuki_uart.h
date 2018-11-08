@@ -1,6 +1,7 @@
 #ifndef _KOBUKI_UART_H
 #define _KOBUKI_UART_H
 
+#include <stdint.h>
 
 /* Must call before using uart functions. Returns < 0 on error. */
 int kobuki_uart_init(void);
