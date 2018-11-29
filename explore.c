@@ -24,7 +24,8 @@
 #include "kobukiSensorPoll.h"
 #include "kobukiSensorTypes.h"
 #include "kobukiUtilities.h"
-#include "mpu9250.h"
+
+#include <Python.h>
 
 // I2C manager
 NRF_TWI_MNGR_DEF(twi_mngr_instance, 5, 0);
@@ -79,21 +80,30 @@ static float measure_distance_reverse(uint16_t current_encoder, uint16_t previou
 	return result;
 }
 
+PyObject* myModuleString = PyString_FromString((char*)"track_yellow");
+PyObject* myModule = PyImport_Import(myModuleString);
+PyObject* detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
+PyObject* detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
+PyObject* centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
+
 
 static bool duck_detect_left(void) {
-
+  PyObject* myResult = PyObject_CallObject(detect_left, NULL)
+  double result = PyFloat_AsDouble(myResult);
 }
 
 static bool duck_detect_right(void) {
-
+  PyObject* myResult = PyObject_CallObject(detect_right, NULL)
+  double result = PyFloat_AsDouble(myResult);
 }
 
 static bool duck_centered(void) {
-
+  PyObject* myResult = PyObject_CallObject(centered, NULL)
+  double result = PyFloat_AsDouble(myResult);
 }
 
 static float duck_dist(void) {
-
+ 
 }
 
 static route_t * get_return_directions(void) {
