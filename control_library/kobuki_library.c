@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+const int16_t FIXED_RADIUS_FOR_TURN = 100; // in mm
+const int16_t FIXED_SPEED_FOR_TURN = 100; // in mm/s
+
 /* Initializes Kobuki Library. Called before library functions. */
 bool kobukiLibraryInit(void) {
 	return (kobuki_uart_init() >= 0);
@@ -66,6 +69,49 @@ bool isButtonPressed(KobukiSensors_t* sensors) {
 
   return result;
 }
+
+/*
+   Returned time is in ms
+   Desired Angle is defined in degrees
+*/
+float kobukiTimeToReachAngleRight(float desiredAngle) {
+	/* Theory:
+		See theory in kobukiTimeToReachAngleLeft.
+	*/
+	return kobukiTimeToReachAngleLeft(desiredAngle);
+}
+
+/*
+   Returned time is in ms
+   Desired Angle is defined in degrees
+*/
+float kobukiTimeToReachAngleLeft(float desiredAngle) {
+	/* Theory:
+		w = v/r			theta = theta_0 + wt
+		Desired angle = theta_star = theta - theta_0
+		So theta_star = wt = vt/r -> t = r*theta_star/v
+
+		Using fixed radius and speed values we can isolate for t.
+		Can fixed values based on reasonable times to complete a turn
+		Can also fix in order to make turns tighter and have less jitter.
+  */
+
+	float radians = desiredAngle * (M_PI / 180.0);	
+
+	return (radians * FIXED_RADIUS_FOR_TURN / FIXED_SPEED_FOR_TURN)/ 1000.0;
+
+}
+
+/* Turns at fixed speed. */
+int32_t kobukiTurnRight(void) {
+	return kobukiDriveRadius(100, -100);
+}
+
+/* Turns at fixed speed. */
+int32_t kobukiTurnLeft(void) {
+	return kobukiDriveRadius(100, 100);
+}
+
 
 int32_t kobukiDriveDirect(int16_t leftWheelSpeed, int16_t rightWheelSpeed){
 	int32_t CmdSpeed;

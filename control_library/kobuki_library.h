@@ -21,6 +21,28 @@ bool isButtonPressed(KobukiSensors_t* sensors);
                  ACTUATOR API
   ============================================== */
 
+/*
+   Returned time is in ms
+   Desired Angle is defined in degrees and is positive <= 180
+*/
+float kobukiTimeToReachAngleRight(
+		float desiredAngle
+);
+
+/*
+   Returned time is in ms
+   Desired Angle is defined in degrees and is positive <= 180
+*/
+float kobukiTimeToReachAngleLeft(
+		float desiredAngle
+);
+
+/* Turns at fixed speed. */
+int32_t kobukiTurnRight(void);
+
+/* Turns at fixed speed. */
+int32_t kobukiTurnLeft(void);
+
 /* Wheel speed is defined in mm/s. */
 int32_t kobukiDriveDirect(
 		int16_t leftWheelSpeed,
