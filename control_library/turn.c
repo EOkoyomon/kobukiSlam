@@ -60,12 +60,12 @@ int main(void) {
 
 			case DRIVING: {
 				// transition logic
-				if (isButtonPressed(&sensors) || sensors.bumps_wheelDrops.bumpCenter) {
+				if (isButtonPressed(&sensors)) {
 					printf("Button pressed.\n");
 					state = OFF;
 				} else {
 					// perform state-specific actions here
-					kobukiDriveDirect(200, 200);
+					kobukiDriveRadius(100, 200);
 					state = DRIVING;
 				}
 				
