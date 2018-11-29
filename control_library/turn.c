@@ -65,7 +65,7 @@ int main(void) {
 					state = OFF;
 				} else {
 					// perform state-specific actions here
-					kobukiDriveRadius(100, 200);
+					kobukiDriveRadius(10, 100);
 					state = DRIVING;
 				}
 				

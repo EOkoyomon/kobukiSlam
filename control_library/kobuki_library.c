@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int16_t FIXED_RADIUS_FOR_TURN = 100; // in mm
+const int16_t FIXED_RADIUS_FOR_TURN = 10; // in mm
 const int16_t FIXED_SPEED_FOR_TURN = 100; // in mm/s
 
 /* Initializes Kobuki Library. Called before library functions. */
