@@ -1,0 +1,1 @@
+opencv_traincascade -data duck_classifier -vec duck.vec -bg ./kinect_negative/negative.txt -numPos 300 -numNeg 5000 numStages 15 -acceptanceRatioBreakValue 0.0001 -featureType LBP -w 50 -h 50 -minHitRate 0.9999 -maxFalseAlarmRate 0.4 -weightTrimRate 0.95 -maxDepth 1
