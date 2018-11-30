@@ -20,9 +20,10 @@ camWidth = cam.get(cv2.CAP_PROP_FRAME_WIDTH)
 camHeight = cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 
-def get_yellow_center():
+def get_yellow_center(image_path):
   # Get image from camera
-  ret_val, img = cam.read()
+  # ret_val, img = cam.read()
+  img = cv2.imread(image_path)
 
   # Blur image to remove noise
   img_filter = cv2.GaussianBlur(img.copy(), (3, 3), 0)
@@ -61,8 +62,8 @@ def get_yellow_center():
   else:
     return -1
 
-def duck_centered():
-  center = get_yellow_center()
+def duck_centered(image_path):
+  center = get_yellow_center(image_path)
 
   if center == -1:
     return 0
@@ -72,8 +73,8 @@ def duck_centered():
 
   return 0
 
-def duck_detect_left():
-  center = get_yellow_center()
+def duck_detect_left(image_path):
+  center = get_yellow_center(image_path)
 
   if center == -1:
     return 0
@@ -83,8 +84,8 @@ def duck_detect_left():
 
   return 0
 
-def duck_detect_right():
-  center = get_yellow_center()
+def duck_detect_right(image_path):
+  center = get_yellow_center(image_path)
 
   if center == -1:
     return 0
@@ -93,6 +94,9 @@ def duck_detect_right():
     return 1
 
   return 0
+
+def duck_distance(image_path):
+  
 
 
 

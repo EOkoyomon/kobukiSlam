@@ -85,24 +85,36 @@ PyObject* myModule = PyImport_Import(myModuleString);
 PyObject* detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
 PyObject* detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
 PyObject* centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
+PyObject* distance = PyObject_GetAttrString(myModule,(char*)"duck_distance");
 
 
-static bool duck_detect_left(void) {
-  PyObject* myResult = PyObject_CallObject(detect_left, NULL)
+static bool duck_detect_left(char *img_path) {
+  PyObject* py_msg = PyString_FromString(img_path);
+  PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(detect_left, args)
   double result = PyFloat_AsDouble(myResult);
 }
 
-static bool duck_detect_right(void) {
-  PyObject* myResult = PyObject_CallObject(detect_right, NULL)
+static bool duck_detect_right(char *img_path) {
+  PyObject* py_msg = PyString_FromString(img_path);
+  PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(detect_right, args)
   double result = PyFloat_AsDouble(myResult);
 }
 
-static bool duck_centered(void) {
-  PyObject* myResult = PyObject_CallObject(centered, NULL)
+static bool duck_centered(char *img_path) {
+  PyObject* py_msg = PyString_FromString(img_path);
+  PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(centered, args)
   double result = PyFloat_AsDouble(myResult);
 }
 
-static float duck_dist(void) {
+static float duck_dist(char *img_path) {
+  // once the duck is centered, get the distance
+  PyObject* py_msg = PyString_FromString(img_path);
+  PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(distance, args)
+  double result = PyFloat_AsDouble(myResult);
  
 }
 
