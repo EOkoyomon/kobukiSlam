@@ -13,11 +13,11 @@ CAMERA_HEIGHT = 240
 MIN_RADIUS = 2
 
 # Initialize camera and get actual resolution
-cam = cv2.VideoCapture(0)
-cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-camWidth = cam.get(cv2.CAP_PROP_FRAME_WIDTH)
-camHeight = cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
+# cam = cv2.VideoCapture(0)
+# cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+# cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+# camWidth = cam.get(cv2.CAP_PROP_FRAME_WIDTH)
+# camHeight = cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 
 def get_yellow_center(image_path):
@@ -58,44 +58,44 @@ def get_yellow_center(image_path):
   if center != None:
     # cv2.circle(img, center, int(round(radius)), (0, 255, 0))
     # cv2.imshow('webcam', img)
-    return center
+    return center, img.shape[1], img.shape[0]
   else:
-    return -1
+    return -1, -1, -1
 
 def duck_centered(image_path):
-  center = get_yellow_center(image_path)
+  center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
     return 0
 
-  if center[0] <= (camWidth / 2.0 + 0.1 * camWidth) and center[0] >= (camWidth / 2.0 - 0.1 * camWidth):
+  if center[0] <= (im_w / 2.0 + 0.1 * im_w) and center[0] >= (im_w / 2.0 - 0.1 * im_w):
     return 1
 
   return 0
 
 def duck_detect_left(image_path):
-  center = get_yellow_center(image_path)
+  center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
     return 0
 
-  if center[0] < (camWidth / 2.0 - 0.1 * camWidth):
+  if center[0] < (im_w / 2.0 - 0.1 * im_w):
     return 1
 
   return 0
 
 def duck_detect_right(image_path):
-  center = get_yellow_center(image_path)
+  center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
     return 0
 
-  if center[0] > (camWidth / 2.0 + 0.1 * camWidth):
+  if center[0] > (im_w / 2.0 + 0.1 * im_w):
     return 1
 
   return 0
 
-def duck_distance(image_path):
+# def duck_distance(image_path):
   
 
 
