@@ -10,7 +10,7 @@
 #include "control_library/kobuki_library.h"
 #include "control_library/kobukiSensorTypes.h"
 
-#include <Python.h>
+#include <python2.7/Python.h>
 
 typedef enum {
   OFF,
