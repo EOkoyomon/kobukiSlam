@@ -1,34 +1,16 @@
-// Robot Template app
-//
-// Framework for creating applications that control the Kobuki robot
+// Robot exploration to find object
 
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#include "app_error.h"
-#include "app_timer.h"
-#include "nrf.h"
-#include "nrf_delay.h"
-#include "nrf_gpio.h"
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-#include "nrf_pwr_mgmt.h"
-#include "nrf_drv_spi.h"
-
-#include "buckler.h"
-#include "display.h"
-#include "kobukiActuator.h"
-#include "kobukiSensorPoll.h"
-#include "kobukiSensorTypes.h"
-#include "kobukiUtilities.h"
+#include "control_library/kobuki_library.h"
+#include "control_library/kobukiSensorTypes.h"
 
 #include <Python.h>
-
-// I2C manager
-NRF_TWI_MNGR_DEF(twi_mngr_instance, 5, 0);
 
 typedef enum {
   OFF,
@@ -118,78 +100,40 @@ static float duck_dist(char *img_path) {
  
 }
 
-static route_t * get_return_directions(void) {
+/* Must be freed after. */
+static route_t* get_return_directions(void) {
 
 }
 
 int main(void) {
 
-  ret_code_t error_code = NRF_SUCCESS;
+	if (!kobukiLibraryInit()) {
+		printf("Error initializing the Kobuki Library\n");
+		exit(1);
+	}
 
-  // initialize RTT library
-  error_code = NRF_LOG_INIT(NULL);
-  APP_ERROR_CHECK(error_code);
-  NRF_LOG_DEFAULT_BACKENDS_INIT();
-  printf("Log initialized!\n");
-
-  // initialize LEDs
-  nrf_gpio_pin_dir_set(23, NRF_GPIO_PIN_DIR_OUTPUT);
-  nrf_gpio_pin_dir_set(24, NRF_GPIO_PIN_DIR_OUTPUT);
-  nrf_gpio_pin_dir_set(25, NRF_GPIO_PIN_DIR_OUTPUT);
-
-  // initialize display
-  nrf_drv_spi_t spi_instance = NRF_DRV_SPI_INSTANCE(1);
-  nrf_drv_spi_config_t spi_config = {
-    .sck_pin = BUCKLER_LCD_SCLK,
-    .mosi_pin = BUCKLER_LCD_MOSI,
-    .miso_pin = BUCKLER_LCD_MISO,
-    .ss_pin = BUCKLER_LCD_CS,
-    .irq_priority = NRFX_SPI_DEFAULT_CONFIG_IRQ_PRIORITY,
-    .orc = 0,
-    .frequency = NRF_DRV_SPI_FREQ_4M,
-    .mode = NRF_DRV_SPI_MODE_2,
-    .bit_order = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST
-  };
-  error_code = nrf_drv_spi_init(&spi_instance, &spi_config, NULL, NULL);
-  APP_ERROR_CHECK(error_code);
-  display_init(&spi_instance);
-  display_write("Hello, Human!", DISPLAY_LINE_0);
-  printf("Display initialized!\n");
-
-  // initialize i2c master (two wire interface)
-  nrf_drv_twi_config_t i2c_config = NRF_DRV_TWI_DEFAULT_CONFIG;
-  i2c_config.scl = BUCKLER_SENSORS_SCL;
-  i2c_config.sda = BUCKLER_SENSORS_SDA;
-  i2c_config.frequency = NRF_TWIM_FREQ_100K;
-  error_code = nrf_twi_mngr_init(&twi_mngr_instance, &i2c_config);
-  APP_ERROR_CHECK(error_code);
-  mpu9250_init(&twi_mngr_instance);
-  printf("IMU initialized!\n");
-
-  // initialize Kobuki
-  kobukiInit();
-  printf("Kobuki initialized!\n");
+	printf("Kobuki Library Initiated\n");
 
   // configure initial state
   robot_state_t state = OFF;
   KobukiSensors_t sensors = {0};
 
-  float rotate_angle = 0;
+	bool started_rotation = false;
+  clock_t start_time = 0;
+	float target_rotation_time = kobukiTimeToReachAngleRight(90);
   float distance_traveled = 0;
   uint16_t old_encoder = 0;
   uint16_t new_encoder = 0;
   route_t * directions;
 
   // loop forever, running state machine
+	const int sleep_interval_in_ms = 10;
   while (1) {
+		// usleep takesleep in microseconds
+		usleep(sleep_interval_in_ms * 1000);
 
-    // read sensors from robot
-    kobukiSensorPoll(&sensors);
-
-    // delay before continuing
-    // Note: removing this delay will make responses quicker, but will result
-    //  in printf's in this loop breaking JTAG
-    nrf_delay_ms(100);
+		// read sensors from robot
+		if (kobukiSensorPoll(&sensors) < 0) continue;
 
     // handle states
     switch(state) {
@@ -237,25 +181,31 @@ int main(void) {
 
       case ROTATING: {
 
+				if (!started_rotation) {
+					start_time = clock();
+					started_rotation = true;
+				}
+
         if (is_button_pressed(&sensors)) {
           state = OFF;
 
         } else if (duck_detect_left()) {
           state = ROTATE_LEFT;
           kobukiDriveDirect(0, 0);
-          total_rotated = 0;
+          started_rotation = false;
 
         } else if (duck_detect_right()) {
           state = ROTATE_RIGHT;
           kobukiDriveDirect(0, 0);
-          total_rotated = 0;
+          started_rotation = false;
 
-        } else if (total_rotated < 90){
-          total_rotated = ;
-          kobukiDriveDirect(50, -50);
+        } else if (((float)(start_time - clock()) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+          kobukiTurnRightFixed();
 
         } else {
           state = DRIVE_STRAIGHT;
+          kobukiDriveDirect(0, 0);
+          started_rotation = false;
         }
 
         break;
@@ -269,6 +219,7 @@ int main(void) {
           state = OFF;
 
         } else if (duck_centered()) {
+          kobukiDriveDirect(0, 0);
         	state = APPROACH;
 
         } else {
@@ -286,6 +237,7 @@ int main(void) {
           state = OFF;
 
         } else if (duck_centered()) {
+          kobukiDriveDirect(0, 0);
           state = APPROACH;
 
         } else {

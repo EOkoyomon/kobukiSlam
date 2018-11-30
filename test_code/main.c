@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "kobuki_library.h"
+#include "../control_library/kobuki_library.h"
 
 int main(void) {
 	if (kobukiLibraryInit()) {

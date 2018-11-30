@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+	Kobuki User Guide:
+	https://docs.google.com/document/d/15k7UBnYY_GPmKzQCjzRGCW-4dIP7zl_R_7tWPLM0zKI/edit#
+*/
+
 const int16_t FIXED_RADIUS_FOR_TURN = 10; // in mm
 const int16_t FIXED_SPEED_FOR_TURN = 100; // in mm/s
 
@@ -103,13 +108,13 @@ float kobukiTimeToReachAngleLeft(float desiredAngle) {
 }
 
 /* Turns at fixed speed. */
-int32_t kobukiTurnRight(void) {
-	return kobukiDriveRadius(100, -100);
+int32_t kobukiTurnRightFixed(void) {
+	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, -FIXED_SPEED_FOR_TURN);
 }
 
 /* Turns at fixed speed. */
-int32_t kobukiTurnLeft(void) {
-	return kobukiDriveRadius(100, 100);
+int32_t kobukiTurnLeftFixed(void) {
+	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, FIXED_SPEED_FOR_TURN);
 }
 
 
