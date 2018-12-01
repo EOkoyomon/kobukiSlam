@@ -1,5 +1,7 @@
 import cv2
 import time
+import glob
+import os
 
 # HSV color thresholds for YELLOW
 THRESHOLD_LOW = (15, 210, 20);
@@ -19,8 +21,23 @@ MIN_RADIUS = 2
 # camWidth = cam.get(cv2.CAP_PROP_FRAME_WIDTH)
 # camHeight = cam.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
+def get_latest_image():
+	# get the most recent image
+
+	list_of_files = glob.glob('/home/ubuntu/kobukiSlam/RGBDCapture/RGBDCapture/build/*')
+	latest_folder = max(list_of_files, key=os.path.getctime)
+	list_of_files = glob.glob(latest_folder + '/depth/*')
+	latest_depth = max(list_of_files, key=os.path.getctime)
+	list_of_files = glob.glob(latest_folder + '/rgb/*')
+	latest_rgb = max(list_of_files, key=os.path.getctime)
+	return latest_rgb, latest_depth
+
 
 def get_yellow_center(image_path):
+  '''
+  find the center point of the duck on the screen
+
+  '''
   # Get image from camera
   # ret_val, img = cam.read()
   img = cv2.imread(image_path)
@@ -62,7 +79,15 @@ def get_yellow_center(image_path):
   else:
     return -1, -1, -1
 
-def duck_centered(image_path):
+def duck_centered():
+
+  '''
+  detect if duck is centered 
+
+  '''
+
+  image_path, _ = get_latest_image()
+
   center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
@@ -73,7 +98,15 @@ def duck_centered(image_path):
 
   return 0
 
-def duck_detect_left(image_path):
+def duck_detect_left():
+
+  '''
+  detect if duck is on the left side of the camera
+
+  '''
+
+  image_path, _ = get_latest_image()
+
   center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
@@ -84,7 +117,15 @@ def duck_detect_left(image_path):
 
   return 0
 
-def duck_detect_right(image_path):
+def duck_detect_right():
+
+  '''
+  detect if the duck is on the right side of the camera
+
+  '''
+
+  image_path, _ = get_latest_image()
+
   center, im_w, im_h = get_yellow_center(image_path)
 
   if center == -1:
@@ -95,7 +136,23 @@ def duck_detect_right(image_path):
 
   return 0
 
-# def duck_distance(image_path):
+def duck_distance():
+
+  '''
+  get distance of center of duck, using most recent image
+
+  '''
+
+  image_path, depth_path = get_latest_image()
+  center, im_w, im_h = get_yellow_center(image_path)
+
+  if center == -1:
+    return -1
+
+  depth_image = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+  depth_value = depth_image[center[0], center[1]]
+  return depth_value
+	
   
 
 
