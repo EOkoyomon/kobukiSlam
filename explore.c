@@ -62,40 +62,40 @@ static float measure_distance_reverse(uint16_t current_encoder, uint16_t previou
 	return result;
 }
 
-PyObject* myModuleString = PyString_FromString((char*)"track_yellow");
-PyObject* myModule = PyImport_Import(myModuleString);
-PyObject* detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
-PyObject* detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
-PyObject* centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
-PyObject* distance = PyObject_GetAttrString(myModule,(char*)"duck_distance");
+PyObject* myModuleString;
+PyObject* myModule;
+PyObject* detect_left;
+PyObject* detect_right;
+PyObject* centered;
+PyObject* distance;
 
 
-static bool duck_detect_left(char *img_path) {
-  PyObject* py_msg = PyString_FromString(img_path);
-  PyObject* args = PyTuple_Pack(1,py_msg);
-  PyObject* myResult = PyObject_CallObject(detect_left, args)
+static bool duck_detect_left() {
+  // PyObject* py_msg = PyString_FromString(img_path);
+  // PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(detect_left, NULL);
   double result = PyFloat_AsDouble(myResult);
 }
 
-static bool duck_detect_right(char *img_path) {
-  PyObject* py_msg = PyString_FromString(img_path);
-  PyObject* args = PyTuple_Pack(1,py_msg);
-  PyObject* myResult = PyObject_CallObject(detect_right, args)
+static bool duck_detect_right() {
+  // PyObject* py_msg = PyString_FromString(img_path);
+  // PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(detect_right, NULL);
   double result = PyFloat_AsDouble(myResult);
 }
 
-static bool duck_centered(char *img_path) {
-  PyObject* py_msg = PyString_FromString(img_path);
-  PyObject* args = PyTuple_Pack(1,py_msg);
-  PyObject* myResult = PyObject_CallObject(centered, args)
+static bool duck_centered() {
+  // PyObject* py_msg = PyString_FromString(img_path);
+  // PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(centered, NULL);
   double result = PyFloat_AsDouble(myResult);
 }
 
-static float duck_dist(char *img_path) {
+static float duck_dist() {
   // once the duck is centered, get the distance
-  PyObject* py_msg = PyString_FromString(img_path);
-  PyObject* args = PyTuple_Pack(1,py_msg);
-  PyObject* myResult = PyObject_CallObject(distance, args)
+  // PyObject* py_msg = PyString_FromString(img_path);
+  // PyObject* args = PyTuple_Pack(1,py_msg);
+  PyObject* myResult = PyObject_CallObject(distance, NULL);
   double result = PyFloat_AsDouble(myResult);
  
 }
@@ -125,6 +125,13 @@ int main(void) {
   uint16_t old_encoder = 0;
   uint16_t new_encoder = 0;
   route_t * directions;
+
+	myModuleString = PyString_FromString((char*)"track_yellow");
+	myModule = PyImport_Import(myModuleString);
+	detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
+	detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
+	centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
+	distance = PyObject_GetAttrString(myModule,(char*)"duck_distance");
 
   // loop forever, running state machine
 	const int sleep_interval_in_ms = 10;
@@ -159,17 +166,17 @@ int main(void) {
         } else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
           state = ROTATING;
           kobukiDriveDirect(0, 0);
-          total_rotated = 0;
+         //  total_rotated = 0;
 
         } else if (duck_detect_left()) {
           state = ROTATE_LEFT;
           kobukiDriveDirect(0, 0);
-          total_rotated = 0;
+          // total_rotated = 0;
 
         } else if (duck_detect_right()) {
           state = ROTATE_RIGHT;
           kobukiDriveDirect(0, 0);
-          total_rotated = 0;
+          // total_rotated = 0;
 
         } else {
           state = DRIVE_STRAIGHT;
@@ -251,11 +258,11 @@ int main(void) {
       case APPROACH: {
         if (is_button_pressed(&sensors)) {
           state = OFF;
-        } else if (duck_dist <= 0.1) {
+        } else if (duck_dist() <= 0.1) {
           state = RETURN;
           directions = get_return_directions();
           distance_traveled = 0;
-          total_rotated = 0;
+          // total_rotated = 0;
         } else {
           kobukiDriveDirect(50, 50);
           state = APPROACH;
@@ -274,9 +281,9 @@ int main(void) {
             old_encoder = new_encoder;
             new_encoder = sensors.leftWheelEncoder;
             distance_traveled += measure_distance(old_encoder, new_encoder);
-          } else if (abs(directions->rotate_angle - total_rotated) >= 0.1) {
+          } else if (abs(directions->rotate_angle) >= 0.1) {
             kobukiDriveDirect(10, -10);
-            total_rotated = ;
+            // total_rotated = ;
           } else {
             directions = directions->next;
           }
