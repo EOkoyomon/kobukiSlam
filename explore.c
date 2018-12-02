@@ -115,7 +115,7 @@ void intHandler(int sig) {
     exit(0);
 }
 
-int main(void) {
+int main(void) { // to start the kinect recorder, lets try putting the function in track_yellow and starting it by calling a python function, and when we get a SIGINT, handle it in the python function by killing the recorder
 
     signal(SIGINT, intHandler);
     
@@ -125,6 +125,11 @@ int main(void) {
     }
 
     printf("Kobuki Library Initiated\n");
+    
+    FILE *fp;
+    char pid_info
+    system("./kinect_record &> /dev/null &");
+    printf("kinect capture started\n");
 
     // configure initial state
     robot_state_t state = OFF;
@@ -148,16 +153,10 @@ int main(void) {
 
     pDict = PyModule_GetDict(myModule); //printf("hello\n");
     detect_left = PyDict_GetItemString(pDict, (char*)"duck_detect_left");
-    
     detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
-    
     detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
     centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
     distance = PyObject_GetAttrString(myModule,(char*)"duck_distance");
-    
-    printf("%d\n", duck_detect_left());
-    printf("%d\n", duck_detect_right());
-    printf("%d\n", duck_centered());
 
     // loop forever, running state machine
     const int sleep_interval_in_ms = 10;

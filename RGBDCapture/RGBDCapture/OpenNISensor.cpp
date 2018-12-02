@@ -157,9 +157,9 @@ void OpenNISensor::scan()
 
 	createRGBDFolders();
 
-	string strDepthWindowName("Depth"), strColorWindowName("Color");
-	cv::namedWindow(strDepthWindowName, CV_WINDOW_AUTOSIZE);
-	cv::namedWindow(strColorWindowName, CV_WINDOW_AUTOSIZE);
+	// string strDepthWindowName("Depth"), strColorWindowName("Color");
+	// cv::namedWindow(strDepthWindowName, CV_WINDOW_AUTOSIZE);
+	// cv::namedWindow(strColorWindowName, CV_WINDOW_AUTOSIZE);
 	
 	while (true)
 	{
@@ -171,7 +171,7 @@ void OpenNISensor::scan()
 			cv::cvtColor(mImageRGB, cImageBGR, CV_RGB2BGR);
 			if (m_sensorType == 0)
 				cv::flip(cImageBGR, cImageBGR, 1);
-			cv::imshow(strColorWindowName, cImageBGR);
+			// cv::imshow(strColorWindowName, cImageBGR);
 			cv::imwrite(m_strRGBDFolder + "/rgb/" + to_string(m_frameIdx) + ".png", cImageBGR);
 		}
 		else
@@ -188,7 +188,7 @@ void OpenNISensor::scan()
 			mImageDepth.convertTo(cScaledDepth, CV_16UC1, c_depthScaleFactor);
 			if (m_sensorType == 0)
 				cv::flip(cScaledDepth, cScaledDepth, 1);
-			cv::imshow(strDepthWindowName, cScaledDepth);
+			// cv::imshow(strDepthWindowName, cScaledDepth);
 			cv::imwrite(m_strRGBDFolder + "/depth/" + to_string(m_frameIdx) + ".png", cScaledDepth);
 		}
 		else
