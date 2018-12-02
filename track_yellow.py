@@ -24,12 +24,20 @@ MIN_RADIUS = 2
 def get_latest_image():
 	# get the most recent image
 
-	list_of_files = glob.glob('/home/ubuntu/kobukiSlam/RGBDCapture/RGBDCapture/build/*')
+	list_of_files = glob.glob('/home/ubuntu/kobukiSlam/capture/*')
 	latest_folder = max(list_of_files, key=os.path.getctime)
+	
+	# get the second latest image because the latest may not have fully written yet
 	list_of_files = glob.glob(latest_folder + '/depth/*')
 	latest_depth = max(list_of_files, key=os.path.getctime)
+	list_of_files.remove(latest_depth)
+	latest_depth = max(list_of_files, key=os.path.getctime)
+	
 	list_of_files = glob.glob(latest_folder + '/rgb/*')
 	latest_rgb = max(list_of_files, key=os.path.getctime)
+	list_of_files.remove(latest_rgb)
+	latest_rgb = max(list_of_files, key=os.path.getctime)
+	
 	return latest_rgb, latest_depth
 
 
@@ -151,6 +159,7 @@ def duck_distance():
 
   depth_image = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
   depth_value = depth_image[center[0], center[1]]
+  print depth_value
   return depth_value
 	
   

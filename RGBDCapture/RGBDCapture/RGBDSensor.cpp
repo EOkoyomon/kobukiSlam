@@ -2,7 +2,7 @@
 
 void RGBDSensor::createRGBDFolders()
 {
-	string folder = "./save";
+	string folder = "./capture/save";
 	int i = 0;
 	while (true){
 		string dir = folder + to_string(i);
