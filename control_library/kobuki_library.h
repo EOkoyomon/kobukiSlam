@@ -38,10 +38,10 @@ float kobukiTimeToReachAngleLeft(
 );
 
 /* Turns at fixed speed. */
-int32_t kobukiTurnRight(void);
+int32_t kobukiTurnRightFixed(void);
 
 /* Turns at fixed speed. */
-int32_t kobukiTurnLeft(void);
+int32_t kobukiTurnLeftFixed(void);
 
 /* Wheel speed is defined in mm/s. */
 int32_t kobukiDriveDirect(

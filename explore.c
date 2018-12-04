@@ -1,5 +1,6 @@
 // Robot exploration to find object
 
+#include <fcntl.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -126,10 +127,22 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
     printf("Kobuki Library Initiated\n");
     
-    FILE *fp;
-    char pid_info
-    system("./kinect_record &> /dev/null &");
-    printf("kinect capture started\n");
+//	int pid = fork();
+//
+//	if (pid == 0) {
+//    		printf("kinect capture started\n");
+//		int fd = open("/dev/null", O_RDWR);
+//		dup2(fd, 1);
+//		dup2(fd, 2);
+//
+//		char* argv[2];
+//		argv[0] = "./kinect_record";
+//		argv[1] = NULL;
+//		execv("./kinect_record", argv);
+//		exit(1);
+//    	// system("./kinect_record 2> /dev/null > /dev/null &");
+//	}
+	
 
     // configure initial state
     robot_state_t state = OFF;
@@ -161,6 +174,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
     // loop forever, running state machine
     const int sleep_interval_in_ms = 10;
     while (1) {
+	printf("STATE: %d\n", state);
+
         // usleep takesleep in microseconds
         usleep(sleep_interval_in_ms * 1000);
 
@@ -193,6 +208,10 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
                 kobukiDriveDirect(0, 0);
                 //  total_rotated = 0;
 
+            } else if (duck_centered()) {
+                state = APPROACH;
+                kobukiDriveDirect(0, 0);
+
             } else if (duck_detect_left()) {
                 state = ROTATE_LEFT;
                 kobukiDriveDirect(0, 0);
@@ -220,6 +239,11 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
             if (isButtonPressed(&sensors)) {
                 state = OFF;
+
+            } else if (duck_centered()) {
+                state = APPROACH;
+                kobukiDriveDirect(0, 0);
+                started_rotation = false;
 
             } else if (duck_detect_left()) {
                 state = ROTATE_LEFT;
@@ -284,17 +308,23 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
             if (isButtonPressed(&sensors)) {
                 state = OFF;
             } else if (duck_dist() <= 0.1) {
+		printf("gets duck dist\n");
+		kobukiDriveDirect(0, 0);
                 state = RETURN;
                 directions = get_return_directions();
+		printf("got directions\n");
                 distance_traveled = 0;
                 // total_rotated = 0;
             } else {
                 kobukiDriveDirect(50, 50);
                 state = APPROACH;
             }
+		break;
         }
 
         case RETURN: {
+
+	/*
             if (isButtonPressed(&sensors)) {
                 state = OFF;
             } else if (directions == NULL) {
@@ -315,6 +345,10 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
                 state = RETURN;
             }
+	*/
+	printf("returning\n");
+	state = OFF;
+	break;
         }
         
         
