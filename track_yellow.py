@@ -4,15 +4,15 @@ import glob
 import os
 
 # HSV color thresholds for YELLOW
-THRESHOLD_LOW = (15, 210, 20);
-THRESHOLD_HIGH = (35, 255, 255);
+THRESHOLD_LOW = (169, 100, 100);
+THRESHOLD_HIGH = (189, 255, 255);
 
 # Webcam parameters (your desired resolution)
 CAMERA_WIDTH = 320
 CAMERA_HEIGHT = 240
 
 # Minimum required radius of enclosing circle of contour
-MIN_RADIUS = 2
+MIN_RADIUS = 20
 
 # Initialize camera and get actual resolution
 # cam = cv2.VideoCapture(0)

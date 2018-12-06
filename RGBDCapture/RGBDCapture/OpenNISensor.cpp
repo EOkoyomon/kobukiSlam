@@ -47,6 +47,10 @@ bool OpenNISensor::init()
 
 	if (rc == openni::STATUS_OK)
 	{
+		openni::VideoMode videoMode = m_depthStream.getVideoMode();
+		videoMode.setFps(60);
+		m_depthStream.setVideoMode(videoMode);
+		cout << "Frame per second depth:" << m_depthStream.getVideoMode().getFps() << endl;
 		rc = m_depthStream.start();
 
 		if (rc != openni::STATUS_OK)
@@ -68,6 +72,10 @@ bool OpenNISensor::init()
 	rc = m_colorStream.create(m_device, openni::SENSOR_COLOR);
 	if (rc == openni::STATUS_OK)
 	{
+		openni::VideoMode videoMode = m_depthStream.getVideoMode();
+		videoMode.setFps(60);
+		m_depthStream.setVideoMode(videoMode);
+		cout << "Frame per second color:" << m_depthStream.getVideoMode().getFps() << endl;
 		rc = m_colorStream.start();
 		if (rc != openni::STATUS_OK)
 		{
@@ -157,13 +165,14 @@ void OpenNISensor::scan()
 
 	createRGBDFolders();
 
-	// string strDepthWindowName("Depth"), strColorWindowName("Color");
-	// cv::namedWindow(strDepthWindowName, CV_WINDOW_AUTOSIZE);
-	// cv::namedWindow(strColorWindowName, CV_WINDOW_AUTOSIZE);
+	string strDepthWindowName("Depth"), strColorWindowName("Color");
+	//cv::namedWindow(strDepthWindowName, CV_WINDOW_AUTOSIZE);
+	//cv::namedWindow(strColorWindowName, CV_WINDOW_AUTOSIZE);
 	
 	while (true)
 	{
 		m_colorStream.readFrame(&m_colorFrame);
+		m_depthStream.readFrame(&m_depthFrame);
 		if (m_colorFrame.isValid())
 		{
 			cv::Mat mImageRGB(m_colorHeight, m_colorWidth, CV_8UC3, (void*)m_colorFrame.getData());
@@ -180,7 +189,6 @@ void OpenNISensor::scan()
 			return;
 		}
 
-		m_depthStream.readFrame(&m_depthFrame);
 		if (m_depthFrame.isValid())
 		{
 			cv::Mat mImageDepth(m_depthHeight, m_depthWidth, CV_16UC1, (void*)m_depthFrame.getData());

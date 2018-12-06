@@ -60,8 +60,18 @@ int main(void) {
 
 			case DRIVING: {
 				// transition logic
-				if (isButtonPressed(&sensors) || sensors.bumps_wheelDrops.bumpCenter) {
+				if (isButtonPressed(&sensors)) {
 					printf("Button pressed.\n");
+					state = OFF;
+                                    
+                                } else if (sensors.bumps_wheelDrops.bumpCenter) {
+                                        printf("Bumped center.\n");
+					state = OFF;
+                                } else if (sensors.bumps_wheelDrops.bumpLeft) {
+                                        printf("Bumped left.\n");
+					state = OFF;
+                                } else if (sensors.bumps_wheelDrops.bumpRight) {
+                                        printf("Bumped right.\n");
 					state = OFF;
 				} else {
 					// perform state-specific actions here

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+make clean
+kill -9 $(ps -ax | grep ./kinect_record | head -n 1 | awk '{print $1;}')
+# rm -rf capture/save*
+make explore
+./kinect_record >/dev/null 2>/dev/null &
+./explore
+
+# Again just to be safe
+make clean
+kill -9 $(ps -ax | grep ./kinect_record | head -n 1 | awk '{print $1;}')
