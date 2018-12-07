@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <netinet/in.h>
@@ -139,7 +140,7 @@ bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect
 	// Don't care about writefds and exceptfds:
 	select(client_fd+1, &readfds, NULL, NULL, &tv);
 
-	if (FD_ISSET(STDIN, &readfds)) {
+	if (FD_ISSET(client_fd, &readfds)) {
 		if ((nbytes = recv(client_fd, buffer, expected_bytes, 0)) <= 0) {
 			printf("Error reading from client. Connection closed.\n");
 			close(client_fd);
@@ -161,14 +162,12 @@ bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect
 
 /* Must be freed after. */
 static route_t* get_return_directions(void) {
-
+	return NULL;
 }
 
 
 int main(void) { // to start the kinect recorder, lets try putting the function in track_yellow and starting it by calling a python function, and when we get a SIGINT, handle it in the python function by killing the recorder
 
-	signal(SIGINT, intHandler);
-	
 	if (!kobukiLibraryInit()) {
 		printf("Error initializing the Kobuki Library\n");
 		exit(1);
