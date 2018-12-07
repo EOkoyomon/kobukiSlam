@@ -8,27 +8,33 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
 #include "control_library/kobuki_library.h"
 #include "control_library/kobukiSensorTypes.h"
 
-#include <Python.h>
 #include <signal.h>
 
+#define PORT 8080
+
 typedef enum {
-  OFF,
-  DRIVE_STRAIGHT,
-  ROTATING,
-  ROTATE_LEFT,
-  ROTATE_RIGHT, 
-  APPROACH, 
-  RETURN
+	OFF,
+	DRIVE_STRAIGHT,
+	ROTATING,
+	ROTATE_LEFT,
+	ROTATE_RIGHT, 
+	APPROACH, 
+	RETURN
 } robot_state_t;
 
 typedef struct route 
 {
-  float distance;
-  float rotate_angle;
-  struct route *next;
+	float distance;
+	float rotate_angle;
+	struct route *next;
 } route_t;
 
 static float measure_distance(uint16_t current_encoder, uint16_t previous_encoder) {
@@ -64,315 +70,346 @@ static float measure_distance_reverse(uint16_t current_encoder, uint16_t previou
 	return result;
 }
 
-PyObject* myModuleString;
-PyObject* myModule;
-PyObject* pDict;
-PyObject* detect_left;
-PyObject* detect_right;
-PyObject* centered;
-PyObject* distance;
 
+// Returns true on success. Fills in server and client socket file descriptors.
+bool start_instruction_server(int* server_fd, int* client_fd) {
+	
+	struct sockaddr_in address;
+	int opt = 1;
+	int addrlen = sizeof(address);
 
-static bool duck_detect_left() {
-  // PyObject* py_msg = PyString_FromString(img_path);
-  // PyObject* args = PyTuple_Pack(1,py_msg);
-  return false;
-  PyObject* myResult = PyObject_CallObject(detect_left, NULL);
-  double result = PyFloat_AsDouble(myResult);
-  return result;
+	// Creating socket file descriptor 
+	if ((*server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+		printf("Error initializing server socket\n");
+		return false;
+	}
+
+	// Forcefully attaching socket to the port 8080 Part 1
+	if (setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+		printf("Error initializing desired port - part 1\n");
+		return false;
+	}
+
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_port = htons(PORT);
+
+	// Forcefully attaching socket to the port 8080 Part 2
+	if (bind(*server_fd, (struct sockaddr *)&address, sizeof(address))<0) {
+		printf("Error initializing desired port - part 2\n");
+		return false;
+	}
+
+	// Listen for 3 connections, just because..
+	if (listen(*server_fd, 3) < 0) {
+		printf("Error initializing server listening\n");
+		return false;
+	}
+
+	printf("Waiting for client computer to connect\n");
+
+	if ((*client_fd = accept(*server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+		printf("Error initializing connection to client for instruction\n");
+		return false;
+	}	
+
+	printf("Successfully connected to client computer for instructions");
+	return true;
 }
 
-static bool duck_detect_right() {
-  // PyObject* py_msg = PyString_FromString(img_path);
-  // PyObject* args = PyTuple_Pack(1,py_msg);
-  return false;
-  PyObject* myResult = PyObject_CallObject(detect_right, NULL);
-  double result = PyFloat_AsDouble(myResult);
-  return result;
+// Returns false if there was an error other than there just being no info
+// Info on select in http://beej.us/guide/bgnet/html/single/bgnet.html#blocking
+// Returns in the values for the variables passed in
+bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect_center, int* duck_detect_right, float* duck_dist) {
+	const int expected_bytes = 3*sizeof(int) + sizeof(float);
+	char buffer[expected_bytes];
+	memset(buffer, 0, expected_bytes*sizeof(char));
+
+	struct timeval tv;
+	fd_set readfds;
+	int nbytes;
+
+	// Wait 5ms before timing out and returning
+	tv.tv_sec = 0;
+	tv.tv_usec = 5000;
+
+	FD_ZERO(&readfds);
+	FD_SET(client_fd, &readfds);
+
+	// Don't care about writefds and exceptfds:
+	select(client_fd+1, &readfds, NULL, NULL, &tv);
+
+	if (FD_ISSET(STDIN, &readfds)) {
+		if ((nbytes = recv(client_fd, buffer, expected_bytes, 0)) <= 0) {
+			printf("Error reading from client. Connection closed.\n");
+			close(client_fd);
+			return false;
+		}
+		if (nbytes == expected_bytes) {
+			*duck_detect_left = *((int *) buffer);
+			*duck_detect_center = *(((int *) buffer) + 1);
+			*duck_detect_right = *(((int *) buffer) + 2);
+			*duck_dist = *( (float*) (((int *) buffer) + 3) );
+			return true;
+		}
+	}
+
+	return true;
+
 }
 
-static bool duck_centered() {
-  // PyObject* py_msg = PyString_FromString(img_path);
-  // PyObject* args = PyTuple_Pack(1,py_msg);
-  return false;
-  PyObject* myResult = PyObject_CallObject(centered, NULL);
-  double result = PyFloat_AsDouble(myResult);
-  return result;
-}
-
-static float duck_dist() {
-  // once the duck is centered, get the distance
-  // PyObject* py_msg = PyString_FromString(img_path);
-  // PyObject* args = PyTuple_Pack(1,py_msg);
-  return 0;
-  PyObject* myResult = PyObject_CallObject(distance, NULL);
-  double result = PyFloat_AsDouble(myResult);
-  return result;
-}
 
 /* Must be freed after. */
 static route_t* get_return_directions(void) {
 
 }
 
-void intHandler(int sig) {
-    Py_Exit(0);
-    exit(0);
-}
 
 int main(void) { // to start the kinect recorder, lets try putting the function in track_yellow and starting it by calling a python function, and when we get a SIGINT, handle it in the python function by killing the recorder
 
-    signal(SIGINT, intHandler);
-    
-    if (!kobukiLibraryInit()) {
-        printf("Error initializing the Kobuki Library\n");
-        exit(1);
-    }
+	signal(SIGINT, intHandler);
+	
+	if (!kobukiLibraryInit()) {
+		printf("Error initializing the Kobuki Library\n");
+		exit(1);
+	}
 
-    printf("Kobuki Library Initiated\n");
-    
-//	int pid = fork();
-//
-//	if (pid == 0) {
-//    		printf("kinect capture started\n");
-//		int fd = open("/dev/null", O_RDWR);
-//		dup2(fd, 1);
-//		dup2(fd, 2);
-//
-//		char* argv[2];
-//		argv[0] = "./kinect_record";
-//		argv[1] = NULL;
-//		execv("./kinect_record", argv);
-//		exit(1);
-//    	// system("./kinect_record 2> /dev/null > /dev/null &");
-//	}
+	printf("Kobuki Library Initiated\n");
+	
+	int server_fd, client_fd;
+
+	start_instruction_server(&server_fd, &client_fd);
+
+	// configure initial state
+	robot_state_t state = OFF;
+	KobukiSensors_t sensors = {0};
 	
 
-    // configure initial state
-    robot_state_t state = OFF;
-    KobukiSensors_t sensors = {0};
-    
+	bool started_rotation = false;
+	clock_t start_time = 0;
+	float target_rotation_time = kobukiTimeToReachAngleRight(90);
+	float distance_traveled = 0;
+	uint16_t old_encoder = 0;
+	uint16_t new_encoder = 0;
+	route_t * directions;
 
-    bool started_rotation = false;
-    clock_t start_time = 0;
-    float target_rotation_time = kobukiTimeToReachAngleRight(90);
-    float distance_traveled = 0;
-    uint16_t old_encoder = 0;
-    uint16_t new_encoder = 0;
-    route_t * directions;
-    
-    Py_Initialize();
-    PyRun_SimpleString((char*)"import sys");
-    PyRun_SimpleString("sys.path.insert(0, '.')");
-    
-    myModuleString = PyString_FromString((char*)"track_yellow");
-    myModule = PyImport_Import(myModuleString);
-
-    pDict = PyModule_GetDict(myModule); //printf("hello\n");
-    detect_left = PyDict_GetItemString(pDict, (char*)"duck_detect_left");
-    detect_left = PyObject_GetAttrString(myModule,(char*)"duck_detect_left");
-    detect_right = PyObject_GetAttrString(myModule,(char*)"duck_detect_right");
-    centered = PyObject_GetAttrString(myModule,(char*)"duck_centered");
-    distance = PyObject_GetAttrString(myModule,(char*)"duck_distance");
-
-    // loop forever, running state machine
-    const int sleep_interval_in_ms = 10;
-    while (1) {
-	// printf("STATE: %d\n", state);
-
-        // usleep takesleep in microseconds
-        usleep(sleep_interval_in_ms * 1000);
-
-        // read sensors from robot
-        if (kobukiSensorPoll(&sensors) < 0) continue;
-
-        // handle states
-        switch(state) {
-
-        case OFF: {
-            // transition logic
-            if (isButtonPressed(&sensors)) {
-		printf("driving\n");
-                state = DRIVE_STRAIGHT;
-                new_encoder = sensors.leftWheelEncoder;
-            } else {
-                // perform state-specific actions here
-                kobukiDriveDirect(0, 0);
-                state = OFF;
-            }
-            break; // each case needs to end with break!
-        }
-
-        case DRIVE_STRAIGHT: {
-
-            if (isButtonPressed(&sensors) ) {
-                state = OFF;
-
-            } else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
-           	printf("rotating\n");
-     		state = ROTATING;
-                kobukiDriveDirect(0, 0);
-                //  total_rotated = 0;
-
-            } else if (duck_centered()) {
-		printf("approaching\n");
-                state = APPROACH;
-                kobukiDriveDirect(0, 0);
-
-            } else if (duck_detect_left()) {
-		printf("rotate left\n");
-                state = ROTATE_LEFT;
-                kobukiDriveDirect(0, 0);
-                // total_rotated = 0;
-
-            } else if (duck_detect_right()) {
-		printf("rotate right\n");
-                state = ROTATE_RIGHT;
-                kobukiDriveDirect(0, 0);
-                // total_rotated = 0;
-
-            } else {
-                state = DRIVE_STRAIGHT;
-                kobukiDriveDirect(100, 100);
-            }
-
-            break;
-        }
-
-        case ROTATING: {
-
-            if (!started_rotation) {
-                start_time = clock();
-                started_rotation = true;
-            }
-
-            if (isButtonPressed(&sensors)) {
-                state = OFF;
-
-            } else if (duck_centered()) {
-		printf("approaching\n");
-                state = APPROACH;
-                kobukiDriveDirect(0, 0);
-                started_rotation = false;
-
-            } else if (duck_detect_left()) {
-		printf("rotate left\n");
-                state = ROTATE_LEFT;
-                kobukiDriveDirect(0, 0);
-                started_rotation = false;
-
-            } else if (duck_detect_right()) {
-		printf("rotate right\n");
-                state = ROTATE_RIGHT;
-                kobukiDriveDirect(0, 0);
-                started_rotation = false;
-
-            } else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
-                kobukiTurnRightFixed();
-
-            } else {
-		printf("driving straight\n");
-                state = DRIVE_STRAIGHT;
-                kobukiDriveDirect(0, 0);
-                started_rotation = false;
-            }
-
-            break;
-        }
+	int duck_detect_left;
+	int duck_detect_center;
+	int duck_detect_right;
+	float duck_dist;
 
 
-        case ROTATE_LEFT: {
-            // transition logic
-            
-            if (isButtonPressed(&sensors) ) {
-                state = OFF;
+	// loop forever, running state machine
+	const int sleep_interval_in_ms = 10;
+	while (1) {
+		// printf("STATE: %d\n", state);
 
-            } else if (duck_centered()) {
-		printf("approaching\n");
-                kobukiDriveDirect(0, 0);
-                state = APPROACH;
+		// usleep takesleep in microseconds
+		usleep(sleep_interval_in_ms * 1000);
 
-            } else {
-                kobukiDriveDirect(-10, 10);
-                state = ROTATE_LEFT;
-            }
+		// read sensors from robot
+		if (kobukiSensorPoll(&sensors) < 0) continue;
 
-            break; // each case needs to end with break!
-        }
+		if (!read_new_instruction(client_fd, &duck_detect_left,
+						&duck_detect_center, &duck_detect_right, &duck_dist)) {
+			// Break for now if cannot get instructions
+			break;
+		}
 
-        case ROTATE_RIGHT: {
-            // transition logic
-            
-            if (isButtonPressed(&sensors) ) {
-                state = OFF;
+		// handle states
+		switch(state) {
 
-            } else if (duck_centered()) {
-		printf("approaching\n");
-                kobukiDriveDirect(0, 0);
-                state = APPROACH;
+			case OFF: {
+				// transition logic
+				if (isButtonPressed(&sensors)) {
+					printf("driving\n");
+					state = DRIVE_STRAIGHT;
+					new_encoder = sensors.leftWheelEncoder;
+				} else {
+					// perform state-specific actions here
+					kobukiDriveDirect(0, 0);
+					state = OFF;
+				}
+				break; // each case needs to end with break!
+			}
 
-            } else {
-                kobukiDriveDirect(10, -10);
-                state = ROTATE_RIGHT;
-            }
+			case DRIVE_STRAIGHT: {
 
-            break; // each case needs to end with break!
-        }
+				if (isButtonPressed(&sensors) ) {
+					state = OFF;
 
-        case APPROACH: {
-            if (isButtonPressed(&sensors)) {
-                state = OFF;
-            } else if (duck_dist() <= 0.1) {
-		printf("gets duck dist\n");
-		kobukiDriveDirect(0, 0);
-                state = RETURN;
-                directions = get_return_directions();
-		printf("got directions\n");
-                distance_traveled = 0;
-                // total_rotated = 0;
-            } else {
-                kobukiDriveDirect(50, 50);
-                state = APPROACH;
-            }
-		break;
-        }
+				} else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
+					printf("rotating\n");
+					state = ROTATING;
+					kobukiDriveDirect(0, 0);
+					//	total_rotated = 0;
 
-        case RETURN: {
+				} else if (duck_detect_center) {
+					printf("approaching\n");
+					state = APPROACH;
+					kobukiDriveDirect(0, 0);
 
-	/*
-            if (isButtonPressed(&sensors)) {
-                state = OFF;
-            } else if (directions == NULL) {
-                state = OFF;
-            } else {
+				} else if (duck_detect_left) {
+					printf("rotate left\n");
+					state = ROTATE_LEFT;
+					kobukiDriveDirect(0, 0);
+					// total_rotated = 0;
 
-            if (abs(directions->distance - distance_traveled) >= 0.1) {
-                kobukiDriveDirect(50, 50);
-                old_encoder = new_encoder;
-                new_encoder = sensors.leftWheelEncoder;
-                distance_traveled += measure_distance(old_encoder, new_encoder);
-            } else if (abs(directions->rotate_angle) >= 0.1) {
-                kobukiDriveDirect(10, -10);
-                // total_rotated = ;
-            } else {
-                directions = directions->next;
-            }
+				} else if (duck_detect_right) {
+					printf("rotate right\n");
+					state = ROTATE_RIGHT;
+					kobukiDriveDirect(0, 0);
+					// total_rotated = 0;
 
-                state = RETURN;
-            }
-	*/
-	printf("returning\n");
-	state = OFF;
-	break;
-        }
-        
-        
+				} else {
+					state = DRIVE_STRAIGHT;
+					kobukiDriveDirect(100, 100);
+				}
 
-      // add other cases here
+				break;
+			}
 
-    }
-  }
-  
-  Py_Finalize();
+			case ROTATING: {
+
+				if (!started_rotation) {
+					start_time = clock();
+					started_rotation = true;
+				}
+
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if (duck_detect_center) {
+					printf("approaching\n");
+					state = APPROACH;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
+
+				} else if (duck_detect_left) {
+					printf("rotate left\n");
+					state = ROTATE_LEFT;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
+
+				} else if (duck_detect_right) {
+					printf("rotate right\n");
+					state = ROTATE_RIGHT;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
+
+				} else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+					kobukiTurnRightFixed();
+
+				} else {
+					printf("driving straight\n");
+					state = DRIVE_STRAIGHT;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
+				}
+
+				break;
+			}
+
+
+			case ROTATE_LEFT: {
+				// transition logic
+				
+				if (isButtonPressed(&sensors) ) {
+					state = OFF;
+
+				} else if (duck_detect_center) {
+					printf("approaching\n");
+					kobukiDriveDirect(0, 0);
+					state = APPROACH;
+
+				} else {
+					kobukiDriveDirect(-10, 10);
+					state = ROTATE_LEFT;
+				}
+
+				break; // each case needs to end with break!
+			}
+
+			case ROTATE_RIGHT: {
+				// transition logic
+				
+				if (isButtonPressed(&sensors) ) {
+					state = OFF;
+
+				} else if (duck_detect_center) {
+					printf("approaching\n");
+					kobukiDriveDirect(0, 0);
+					state = APPROACH;
+
+				} else {
+					kobukiDriveDirect(10, -10);
+					state = ROTATE_RIGHT;
+				}
+
+				break; // each case needs to end with break!
+			}
+
+			case APPROACH: {
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+				} else if (duck_dist <= 0.1) {
+					printf("gets duck dist\n");
+					kobukiDriveDirect(0, 0);
+					state = RETURN;
+					directions = get_return_directions();
+					printf("got directions\n");
+					distance_traveled = 0;
+					// total_rotated = 0;
+				} else {
+					kobukiDriveDirect(50, 50);
+					state = APPROACH;
+				}
+				break;
+			}
+
+			case RETURN: {
+
+		/*
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if (directions == NULL) {
+					state = OFF;
+
+				} else {
+					if (abs(directions->distance - distance_traveled) >= 0.1) {
+						kobukiDriveDirect(50, 50);
+						old_encoder = new_encoder;
+						new_encoder = sensors.leftWheelEncoder;
+						distance_traveled += measure_distance(old_encoder, new_encoder);
+
+					} else if (abs(directions->rotate_angle) >= 0.1) {
+						kobukiDriveDirect(10, -10);
+						// total_rotated = ;
+
+					} else {
+						directions = directions->next;
+					}
+
+					state = RETURN;
+				}
+		*/
+				printf("returning\n");
+				state = OFF;
+				break;
+			}
+			
+			// add other cases here
+
+			default: {
+				break;
+			}
+
+		}
+	}
+
+	close(client_fd);
+	close(server_fd);
+	
 }
 
