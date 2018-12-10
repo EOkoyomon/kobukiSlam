@@ -10,6 +10,7 @@ SERVER_PORT = 8080
 SLEEP_INTERVAL_IN_S = 0.01
 i = 0
 DEBUG = True
+StartRead = False
 
 class Client():
 	def __init__(self, address, port):
@@ -21,6 +22,7 @@ class Client():
 
 		# Opens Socket (default arguments: AF_INET means we use IPv4, SOCK_STREAM means use TCP)
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+		self.socket.setblocking(0) # Make non-blocking
 
 	def connect(self):
 		# Connect to Destination Machine
@@ -33,8 +35,24 @@ class Client():
 		arr = [struct.pack("i", int(num)) for num in info]
 		data = b"".join(arr)
 		self.socket.send(data)
-		if info[0] or info[1] or info[2]:
-			print("Network writes:", i)
+		# If center
+		if info[1]:
+			start_read = True
+		# if info[0] or info[1] or info[2]:
+		#	print("Network writes:", i)
+
+	def recvSignal(self):
+		try:
+			signal = self.socket.recv(4)
+			if int(signal) == 249:
+				return True
+		except socket.error, e:
+			err = e.args[0]
+			if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+				pass
+			else:
+				raise e
+		return False
 
 
 if __name__ == "__main__":
@@ -52,6 +70,7 @@ if __name__ == "__main__":
 	client.connect()
 	print("Connected to " + SERVER_ADDR)
 
+	start_slam = False
 	#msg = "0,0,0"
 	while True:
 		i += 1
@@ -66,7 +85,18 @@ if __name__ == "__main__":
 			# Sends input (msg) to specified socket
 			detect_left, detect_center, detect_right = duck_direction(FOLDER)
 			client.sendInfo([detect_left, detect_center, detect_right])
-		
+	
+		if start_read:
+			start_slam = client.recvSignal()
+
+		if start_slam:
+			break
+	
 		time.sleep(SLEEP_INTERVAL_IN_S)
 
+	# Start slam stuff
+	# TODO: call slam
 
+	# TODO: get instructions
+
+	# TODO: send instrucitons
