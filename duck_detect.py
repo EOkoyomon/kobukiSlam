@@ -12,9 +12,9 @@ THRESHOLD_LOW = (15, 210, 20);
 THRESHOLD_HIGH = (35, 255, 255);
 
 # Minimum required radius of enclosing circle of contour
-MIN_RADIUS = 2
+MIN_RADIUS = 20
 
-def duck_center(fname):
+def duck_center(fname, display=False):
 
 	# Initialize camera and get actual resolution
 	# cam = cv2.VideoCapture(0)
@@ -28,9 +28,12 @@ def duck_center(fname):
     # Get image from camera
     # ret_val, img = cam.read()
 	img = cv2.imread(fname)
+	if img is None:
+		return -1
 
     # Blur image to remove noise
-	img_filter = cv2.GaussianBlur(img.copy(), (3, 3), 0)
+	img_filter = cv2.medianBlur(img.copy(), 5)
+	# img_filter = cv2.GaussianBlur(img.copy(), (3, 3), 0)
 
     # Convert image from BGR to HSV
 	img_filter = cv2.cvtColor(img_filter, cv2.COLOR_BGR2HSV)
@@ -59,9 +62,10 @@ def duck_center(fname):
 			if radius < MIN_RADIUS:
 				center = None
 
-	if not center:
-		return -1
-	return center
+	if not display:
+		if not center:
+			return -1
+		return center
 
     # Print out the location and size (radius) of the largest detected contour
 	if center != None:
@@ -75,6 +79,8 @@ def duck_center(fname):
 	cv2.imshow('webcam', img)
 	cv2.imshow('binary', img_binary)
 	cv2.imshow('contours', img_contours)
+	cv2.imshow('gaussian', cv2.GaussianBlur(img.copy(), (3, 3), 0))
+	cv2.imshow('median', img_filter)
 	cv2.waitKey(1) 
 
 def get_latest(folder):
@@ -90,20 +96,24 @@ def duck_direction(folder):
 	fname = get_latest(folder)
 	center = duck_center(folder + '/' + fname)
 
-	if center == -1:
-		return 0, 0, 0, 0.0
+	# print(center, folder + '/' + fname)
+	if center == -1 or center[1] <= (2*CAMERA_HEIGHT / 3.0):
+		return 0, 0, 0
 
 	# centered
-	if center[0] >= (CAMERA_WIDTH / 2.0 - 0.1 * CAMERA_WIDTH) and center[0] <= (CAMERA_WIDTH / 2.0 + 0.1 * CAMERA_WIDTH) :
-		return 0, 1, 0, 0.0
+	if center[0] >= (CAMERA_WIDTH / 2.0 - 0.1 * CAMERA_WIDTH) and center[0] <= (CAMERA_WIDTH / 2.0 + 0.1 * CAMERA_WIDTH):
+		print('centered', center, folder + '/' + fname)
+		return 0, 1, 0
 
 	# left
 	if center[0] <= (CAMERA_WIDTH / 2.0 - 0.1 * CAMERA_WIDTH):	
-		return 1, 0, 0, 0.0
+		print('left', center, folder + '/' + fname)
+		return 1, 0, 0
 
 	# right
 	if center[0] >= (CAMERA_WIDTH / 2.0 + 0.1 * CAMERA_WIDTH):	
-		return 0, 0, 1, 0.0
+		print('right', center, folder + '/' + fname)
+		return 0, 0, 1
 
 
 

@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -120,7 +121,7 @@ bool start_instruction_server(int* server_fd, int* client_fd) {
 		return false;
 	}	
 
-	printf("Successfully connected to client computer for instructions");
+	printf("Successfully connected to client computer for instructions\n");
 	return true;
 }
 
@@ -128,9 +129,9 @@ bool start_instruction_server(int* server_fd, int* client_fd) {
 // Returns false if there was an error other than there just being no info
 // Info on select in http://beej.us/guide/bgnet/html/single/bgnet.html#blocking
 // Returns in the values for the variables passed in
-bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect_center, int* duck_detect_right, float* duck_dist) {
-	const int expected_bytes = 4*sizeof(int);
-	*duck_detect_left = 0, *duck_detect_center = 0, *duck_detect_right = 0, *duck_dist = 0;
+bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect_center, int* duck_detect_right) {
+	const int expected_bytes = 3*sizeof(int);
+	*duck_detect_left = 0, *duck_detect_center = 0, *duck_detect_right = 0;
 	char buffer[expected_bytes];
 	memset(buffer, 0, expected_bytes);
 
@@ -155,11 +156,10 @@ bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect
 			return false;
 		}
 		if (nbytes == expected_bytes) {
-			printf("Got expected\n");
+			// printf("Got expected\n");
 			*duck_detect_left = *((int *) buffer);
 			*duck_detect_center = *(((int *) buffer) + 1);
 			*duck_detect_right = *(((int *) buffer) + 2);
-			*duck_dist = *( (float*) (((int *) buffer) + 3) );
 			return true;
 		}
 		printf("Did not get expected\n");
@@ -205,9 +205,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 	int duck_detect_left;
 	int duck_detect_center;
 	int duck_detect_right;
-	float duck_dist;
 
-
+	int i = 0;
 	// loop forever, running state machine
 	const int sleep_interval_in_ms = 10;
 	while (1) {
@@ -220,9 +219,14 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 		if (kobukiSensorPoll(&sensors) < 0) continue;
 
 		if (!read_new_instruction(client_fd, &duck_detect_left,
-						&duck_detect_center, &duck_detect_right, &duck_dist)) {
+						&duck_detect_center, &duck_detect_right)) {
 			// Break for now if cannot get instructions
 			break;
+		}
+		i++;
+		if (duck_detect_left || duck_detect_center || duck_detect_right) {
+			printf("\nNetwork reads: %d\n", i);
+			printf("Duck_left:\t%d\nDuck_center:\t%d\nDuck_right:\t%d\n", duck_detect_left, duck_detect_center, duck_detect_right);
 		}
 
 		// handle states
@@ -361,12 +365,12 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 			case APPROACH: {
 				if (isButtonPressed(&sensors)) {
 					state = OFF;
-				} else if (duck_dist <= 0.1) {
-					printf("gets duck dist\n");
+				} else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
 					kobukiDriveDirect(0, 0);
-					state = RETURN;
+					printf("Waiting for return instructions\n");
 					directions = get_return_directions();
 					printf("got directions\n");
+					state = RETURN;
 					distance_traveled = 0;
 					// total_rotated = 0;
 				} else {

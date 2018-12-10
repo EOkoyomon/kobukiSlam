@@ -1,2 +1,4 @@
 *.pyc
 capture/*
+duck_vid*
+*.DS_Store
