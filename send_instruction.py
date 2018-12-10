@@ -9,6 +9,7 @@ SERVER_ADDR = "10.42.0.1"
 SERVER_PORT = 8080
 SLEEP_INTERVAL_IN_S = 0.01
 i = 0
+DEBUG = True
 
 class Client():
 	def __init__(self, address, port):
@@ -29,9 +30,6 @@ class Client():
 
 	def sendInfo(self, info):
 		# Send (transmit) message to destination socket
-		# left, center, right, dist = message.split(",")
-		# print(type(message))
-		# info = info.split(",")
 		arr = [struct.pack("i", int(num)) for num in info]
 		data = b"".join(arr)
 		self.socket.send(data)
@@ -57,16 +55,18 @@ if __name__ == "__main__":
 	#msg = "0,0,0"
 	while True:
 		i += 1
-		# print("Enter Message (comma separated detect left, center, right, dist)")
-		# sys.stdout.flush()
 
-		# Gets message from stdin (user input)
-		# msg = input()
-		# client.sendInfo(msg)
-
-		# Sends input (msg) to specified socket
-		detect_left, detect_center, detect_right = duck_direction(FOLDER)
-		client.sendInfo([detect_left, detect_center, detect_right])
+		if DEBUG:
+			print("Enter Message (comma separated detect left, center, right)")
+			sys.stdout.flush()
+			# Gets message from stdin (user input)
+			msg = input()
+			client.sendInfo(msg.split(","))
+		else:
+			# Sends input (msg) to specified socket
+			detect_left, detect_center, detect_right = duck_direction(FOLDER)
+			client.sendInfo([detect_left, detect_center, detect_right])
+		
 		time.sleep(SLEEP_INTERVAL_IN_S)
 
 

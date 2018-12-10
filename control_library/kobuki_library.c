@@ -14,7 +14,7 @@
 */
 
 const int16_t FIXED_RADIUS_FOR_TURN = 10; // in mm
-const int16_t FIXED_SPEED_FOR_TURN = 20; // in mm/s
+const int16_t FIXED_SPEED_FOR_TURN = 50; // in mm/s
 
 /* Initializes Kobuki Library. Called before library functions. */
 bool kobukiLibraryInit(void) {
