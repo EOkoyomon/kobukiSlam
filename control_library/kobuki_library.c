@@ -77,20 +77,9 @@ bool isButtonPressed(KobukiSensors_t* sensors) {
 
 /*
    Returned time is in ms
-   Desired Angle is defined in degrees
+   Desired Angle is defined in degrees and is positive <= 180
 */
-float kobukiTimeToReachAngleRight(float desiredAngle) {
-	/* Theory:
-		See theory in kobukiTimeToReachAngleLeft.
-	*/
-	return kobukiTimeToReachAngleLeft(desiredAngle);
-}
-
-/*
-   Returned time is in ms
-   Desired Angle is defined in degrees
-*/
-float kobukiTimeToReachAngleLeft(float desiredAngle) {
+float kobukiTimeToReachAngle(float desiredAngle) {
 	/* Theory:
 		w = v/r			theta = theta_0 + wt
 		Desired angle = theta_star = theta - theta_0
