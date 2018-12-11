@@ -95,7 +95,7 @@ float kobukiTimeToReachAngle(float desiredAngle) {
 
 	// return (radians * FIXED_RADIUS_FOR_TURN / FIXED_SPEED_FOR_TURN);
 
-	return desiredAngle*(10.08/90.0)*1000.0;
+	return desiredAngle*(10.08/90.0);
 
 }
 
