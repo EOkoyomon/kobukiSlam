@@ -322,8 +322,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 		// usleep takesleep in microseconds
 		usleep(sleep_interval_in_ms * 1000);
 
-		// read sensors from robot
-		if (kobukiSensorPoll(&sensors) < 0) continue;
+		// read sensors from robot - uses old one if theres no new values read
+		kobukiSensorPoll(&sensors);
 
 		if (state != GET_RETURN && state != RETURN) {
 			if (!read_new_instruction(client_fd, &duck_detect_left,

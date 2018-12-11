@@ -3,8 +3,14 @@ import struct
 import sys
 import time
 from duck_detect import duck_direction
+from plan_route import plan_route
+from subprocess
 
-FOLDER="duck_vid/"
+FOLDER = "/home/aaron/.ros/"
+POINT_CLOUD_FOLDER = "/home/aaron/catkin_ws/src/pc_data/data/"
+ROS_WRITE_COMMAND = "rosrun pc_data collector.py _path:=" + POINT_CLOUD_FOLDER
+CLOUD_FILE = POINT_CLOUD_FOLDER + "final_cloud.pcd"
+POSITIONS_FILE = POINT_CLOUD_FOLDER + "positions.txt"
 SERVER_ADDR = "10.42.0.1"
 SERVER_PORT = 8080
 SLEEP_INTERVAL_IN_S = 0.01
@@ -22,7 +28,6 @@ class Client():
 
 		# Opens Socket (default arguments: AF_INET means we use IPv4, SOCK_STREAM means use TCP)
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-		self.socket.setblocking(0) # Make non-blocking
 
 	def connect(self):
 		# Connect to Destination Machine
@@ -37,23 +42,27 @@ class Client():
 		self.socket.send(data)
 		# If center
 		if info[1]:
-			start_read = True
+			StartRead = True
 		# if info[0] or info[1] or info[2]:
 		#	print("Network writes:", i)
 
-	def recvSignal(self):
-		try:
-			signal = self.socket.recv(4)
-			if int(signal) == 249:
-				return True
-		except socket.error, e:
-			err = e.args[0]
-			if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
-				pass
-			else:
-				raise e
-		return False
+	def sendInstructions(self, list_of_instructions):
+		data = [struct.pack("i", 249), struct.pack("i", len(list_of_instructions))]
+		for angle, distance in list_of_instructions:
+			data.append(struct.pack("f", angle))
+			data.append(struct.pack("f", distance))
+		self.socket.send(b"".join(data))
 
+	def recvSignal(self):
+		ready_to_read, _, _ = select.select([self.socket], [], [], 0)
+
+		for sock in ready_to_read:
+			if sock == self.socket:
+				signal = self.socket.recv(4)
+				if int(signal) == 249:
+					return True
+
+		return False
 
 if __name__ == "__main__":
 	#print("Enter IP Address or Hostname")
@@ -86,7 +95,7 @@ if __name__ == "__main__":
 			detect_left, detect_center, detect_right = duck_direction(FOLDER)
 			client.sendInfo([detect_left, detect_center, detect_right])
 	
-		if start_read:
+		if StartRead:
 			start_slam = client.recvSignal()
 
 		if start_slam:
@@ -94,9 +103,24 @@ if __name__ == "__main__":
 	
 		time.sleep(SLEEP_INTERVAL_IN_S)
 
-	# Start slam stuff
-	# TODO: call slam
+	# Start slam stuff - creates the point cloud information needed to plan route
+	""" Call slam
+	
+	# before python send_isntruction. and it will start the kinect, start saving rgb images to ~/.ros, and start slam building.
+	roslaunch pc_data pc_data.launch
+	# when we get to the duck
+	rosrun pc_data collector.py _path:="/home/aaron/catkin_ws/src/pc_data/data/"
+	> saves 2 files. final_cloud.pcd, and positions.txt.
+prashanth should parse positions.txt for the x y and z and orientation, and 
+	"""
+	process = subprocess.Popen(ROS_WRITE_COMMAND, shell=True, stdout=subprocess.PIPE)
+	process.wait()
+	
+	# Get instructions - Returns a list of tuples of (angle, distance)
+	list_of_instructions = plan_route(CLOUD_FILE, POSITIONS_FILE)
 
-	# TODO: get instructions
+	# Send instrucitons
+	client.sendInstructions(list_of_instructions)
 
-	# TODO: send instrucitons
+	print("I'm done")
+	
