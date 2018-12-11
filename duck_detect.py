@@ -12,7 +12,7 @@ THRESHOLD_LOW = (15, 210, 20);
 THRESHOLD_HIGH = (35, 255, 255);
 
 # Minimum required radius of enclosing circle of contour
-MIN_RADIUS = 20
+MIN_RADIUS = 15
 
 def duck_center(fname, display=False):
 
@@ -54,13 +54,20 @@ def duck_center(fname, display=False):
 	center = None
 	radius = 0
 	if len(contours) > 0:
-		c = max(contours, key=cv2.contourArea)
-		((x, y), radius) = cv2.minEnclosingCircle(c)
-		M = cv2.moments(c)
-		if M["m00"] > 0:
-			center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-			if radius < MIN_RADIUS:
-				center = None
+                sorted_contours = sorted(contours,key=cv2.contourArea, reverse=True)
+		# c = max(contours, key=cv2.contourArea)
+                for c in sorted_contours:
+                    center = None
+                    ((x, y), radius) = cv2.minEnclosingCircle(c)
+                    M = cv2.moments(c)
+                    if M["m00"] > 0:
+                            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                            if center[1] <= 2*CAMERA_HEIGHT / 3.0:
+                                continue
+                            else:
+                                if radius < MIN_RADIUS:
+                                    center = None
+                                break
 
 	if not display:
 		if not center:

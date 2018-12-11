@@ -1,8 +1,9 @@
 import binascii
+import os
 import select
 import socket
 import struct
-import subprocess
+# import subprocess
 import sys
 import time
 from duck_detect import duck_direction
@@ -10,14 +11,14 @@ from plan_route import plan_route
 
 FOLDER = "/home/aaron/.ros/"
 POINT_CLOUD_FOLDER = "/home/aaron/catkin_ws/src/pc_data/data/"
-ROS_WRITE_COMMAND = "rosrun pc_data collector.py"
+ROS_WRITE_COMMAND = "./setup_instructions"
 CLOUD_FILE = POINT_CLOUD_FOLDER + "final_cloud.pcd"
 POSITIONS_FILE = POINT_CLOUD_FOLDER + "final_position.txt"
 SERVER_ADDR = "10.42.0.1"
 SERVER_PORT = 8080
 SLEEP_INTERVAL_IN_S = 0.01
 i = 0
-DEBUG = True
+DEBUG = False
 
 class Client():
 	def __init__(self, address, port):
@@ -46,8 +47,8 @@ class Client():
 		if info[1]:
 			self.start_read = True
                         print("starting to read")
-		# if info[0] or info[1] or info[2]:
-		#	print("Network writes:", i)
+		if info[0] or info[1] or info[2]:
+		        print("Network writes:", i)
 
 	def sendInstructions(self, list_of_instructions):
 		data = [struct.pack("i", 249), struct.pack("i", len(list_of_instructions))]
@@ -126,22 +127,28 @@ if __name__ == "__main__":
 	> saves 2 files. final_cloud.pcd, and positions.txt.
 prashanth should parse positions.txt for the x y and z and orientation, and 
 	"""
-	while True:
-		if DEBUG:
-			# Turn 180 degrees, drive .28m, rotate -37.6 degrees, drive.28m, rotate 0, drive .28
-			list_of_instructions = [(180.0, 0.28), (-37.6, 0.28), (0, 0.28)]
-			client.sendInstructions(list_of_instructions)
-		else:
-			process = subprocess.Popen(ROS_WRITE_COMMAND, shell=True, stdout=subprocess.PIPE)
-			process.wait()
-			
-			# Get instructions - Returns a list of tuples of (angle, distance)
-			list_of_instructions = plan_route(CLOUD_FILE, POSITIONS_FILE)
+        list_of_instructions = []
+        if DEBUG:
+                # Turn 180 degrees, drive .28m, rotate -37.6 degrees, drive.28m, rotate 0, drive .28
+                list_of_instructions = [(180.0, 0.28), (-37.6, 0.28), (0, 0.28)]
+        else:
+                # process = subprocess.Popen(ROS_WRITE_COMMAND, shell=True, stdout=subprocess.PIPE)
+                # process.wait()
+                current_dir = os.getcwd()
+                os.chdir("/home/aaron/catkin_ws")
+                os.system("catkin_make")
+                os.system("bash -c 'source devel/setup.bash'")
+                os.chdir(current_dir)
+                os.system("rosrun pc_data collector.py")
+                # Get instructions - Returns a list of tuples of (angle, distance)
+                time.sleep(1)
+                list_of_instructions = plan_route(CLOUD_FILE, POSITIONS_FILE)
 
-			# Send instrucitons
-			client.sendInstructions(list_of_instructions)
+        for i in range(5):
+		# Send instrucitons
+		client.sendInstructions(list_of_instructions)
 
-		time.sleep(SLEEP_INTERVAL_IN_S)
+		time.sleep(1)
 
 	print("I'm done")
-	
+

@@ -54,10 +54,12 @@ def rotation_angle(current, desired):
 
 def plan_route(pcd_name, position_name):
 	data = []
-	with open(position_name, 'r'):
-		for line in position_name:
+	with open(position_name, 'r') as r:
+		for line in r:
 			data.append(float(line))
-	plan_route1(pcd_name, [data[0], data[1]], data[3])
+	instructions = plan_route1(pcd_name, [data[0], data[1]], data[3])
+        print(instructions)
+        return instructions
 
 def plan_route1(pcd_name, end_position, end_orientation, space_size=0.1, display=False):
 
