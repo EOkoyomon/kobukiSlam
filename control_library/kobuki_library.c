@@ -12,7 +12,7 @@
 	Kobuki User Guide:
 	https://docs.google.com/document/d/15k7UBnYY_GPmKzQCjzRGCW-4dIP7zl_R_7tWPLM0zKI/edit#
 */
-
+const int16_t FIX_ADD = 0;
 const int16_t FIXED_RADIUS_FOR_TURN = 10; // in mm
 const int16_t FIXED_SPEED_FOR_TURN = 35; // in mm/s
 
@@ -90,20 +90,23 @@ float kobukiTimeToReachAngle(float desiredAngle) {
 		Can also fix in order to make turns tighter and have less jitter.
   */
 
-	float radians = desiredAngle * (M_PI / 180.0);	
+	// float radians = desiredAngle * (M_PI / 180.0) * (FIX_RATIO * (2 - (desiredAngle/180)));	
+	// float radians = desiredAngle * (M_PI / 180.0);	
 
-	return (radians * FIXED_RADIUS_FOR_TURN / FIXED_SPEED_FOR_TURN)/ 1000.0;
+	// return (radians * FIXED_RADIUS_FOR_TURN / FIXED_SPEED_FOR_TURN);
+
+	return desiredAngle*(10.08/90.0)*1000.0;
 
 }
 
 /* Turns at fixed speed. */
 int32_t kobukiTurnRightFixed(void) {
-	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, -FIXED_SPEED_FOR_TURN);
+	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, -(FIXED_SPEED_FOR_TURN + FIX_ADD));
 }
 
 /* Turns at fixed speed. */
 int32_t kobukiTurnLeftFixed(void) {
-	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, FIXED_SPEED_FOR_TURN);
+	return kobukiDriveRadius(FIXED_RADIUS_FOR_TURN, FIXED_SPEED_FOR_TURN + FIX_ADD);
 }
 
 

@@ -30,7 +30,10 @@ typedef enum {
 	ROTATE_LEFT,
 	ROTATE_RIGHT, 
 	APPROACH, 
+	BACKUP, 
+	ROTATE_RETURN,
 	GET_RETURN, 
+	BOOST, 
 	RETURN
 } robot_state_t;
 
@@ -40,6 +43,17 @@ typedef struct route
 	float distance;
 	struct route *next;
 } route_t;
+
+// Doesn't work
+static long get_ms() {
+	long ms;
+	struct timespec spec;
+
+	clock_gettime(CLOCK_REALTIME, &spec);
+	ms = round(spec.tv_nsec / 1.0e6);
+
+	return ms;
+}
 
 static float measure_distance(uint16_t current_encoder, uint16_t previous_encoder) {
 	const float CONVERSION = 0.00008529;
@@ -271,6 +285,10 @@ static bool readReturnSequence(int client_fd, route_t** head_instruction) {
 				return true;
 			}
 			*head = malloc(sizeof(route_t));
+			if (*head == NULL) {
+				printf("It doesnt want to give us memory\n");
+				return false;
+			}
 			(*head)->rotate_angle = *((float *) buffer);
 			(*head)->distance = *(((float *) buffer)+ 1);
 			(*head)->next = NULL;
@@ -302,7 +320,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 	
 
 	bool started_rotation = false;
-	clock_t start_time = 0;
+	bool started_distance = false;
+	unsigned long start_time = 0;
 	float target_rotation_time = kobukiTimeToReachAngle(90);
 	float distance_traveled = 0;
 	uint16_t old_encoder = 0;
@@ -315,7 +334,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 	int i = 0;
 	// loop forever, running state machine
-	const int sleep_interval_in_ms = 10;
+	const int sleep_interval_in_ms = 7;
 	while (1) {
 		// printf("STATE: %d\n", state);
 
@@ -325,17 +344,31 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 		// read sensors from robot - uses old one if theres no new values read
 		kobukiSensorPoll(&sensors);
 
-		if (state != GET_RETURN && state != RETURN) {
+		duck_detect_left = 0;
+		duck_detect_center = 0;
+		duck_detect_right = 0;
+
+		if (state != GET_RETURN && state != RETURN && state != BACKUP && state != ROTATE_RETURN && state != BOOST ) {
 			if (!read_new_instruction(client_fd, &duck_detect_left,
 							&duck_detect_center, &duck_detect_right)) {
 				// Break for now if cannot get instructions
 				goto end;
 			}
 		}
-		// i++;
-		if (duck_detect_left || duck_detect_center || duck_detect_right) {
+		
+		i++;
+		
+		if (duck_detect_left) {
 			// printf("\nNetwork reads: %d\n", i);
-			printf("Duck_left:\t%d\nDuck_center:\t%d\nDuck_right:\t%d\n", duck_detect_left, duck_detect_center, duck_detect_right);
+			printf("Duck_left:\t%d\n", duck_detect_left);
+		}
+		if (duck_detect_center) {
+			// printf("\nNetwork reads: %d\n", i);
+			printf("Duck_center:\t%d\n", duck_detect_center);
+		}
+		if (duck_detect_right) {
+			// printf("\nNetwork reads: %d\n", i);
+			printf("Duck_right:\t%d\n", duck_detect_right);
 		}
 
 		// handle states
@@ -362,6 +395,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 				} else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
 					printf("rotating\n");
+					printf("\nNetwork reads: %d\n", i);
 					state = ROTATING;
 					kobukiDriveDirect(0, 0);
 					//	total_rotated = 0;
@@ -369,6 +403,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 				} else if (duck_detect_center) {
 					printf("approaching\n");
 					state = APPROACH;
+					new_encoder = sensors.leftWheelEncoder;
 					kobukiDriveDirect(0, 0);
 
 				} else if (duck_detect_left) {
@@ -394,7 +429,9 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 			case ROTATING: {
 
 				if (!started_rotation) {
-					start_time = clock();
+					start_time = time(NULL);
+					printf("Target_rotation_time: %fms\n", target_rotation_time);
+					printf("Start time: %lu\n", time(NULL));
 					started_rotation = true;
 				}
 
@@ -404,6 +441,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 				} else if (duck_detect_center) {
 					printf("approaching\n");
 					state = APPROACH;
+					new_encoder = sensors.leftWheelEncoder;
 					kobukiDriveDirect(0, 0);
 					started_rotation = false;
 
@@ -419,12 +457,15 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					kobukiDriveDirect(0, 0);
 					started_rotation = false;
 
-				} else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+				// } else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC/1000.0)) < target_rotation_time) {
+				} else if ((time(NULL) - start_time) < target_rotation_time) {
 					kobukiTurnRightFixed();
 
 				} else {
 					printf("driving straight\n");
 					state = DRIVE_STRAIGHT;
+					new_encoder = sensors.leftWheelEncoder;
+					printf("End time: %lu\n", time(NULL));
 					kobukiDriveDirect(0, 0);
 					started_rotation = false;
 				}
@@ -443,6 +484,13 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					printf("approaching\n");
 					kobukiDriveDirect(0, 0);
 					state = APPROACH;
+					new_encoder = sensors.leftWheelEncoder;
+
+				} else if (duck_detect_right) {
+					printf("rotate right\n");
+					state = ROTATE_RIGHT;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
 
 				} else {
 					kobukiDriveDirect(-10, 10);
@@ -462,6 +510,13 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					printf("approaching\n");
 					kobukiDriveDirect(0, 0);
 					state = APPROACH;
+					new_encoder = sensors.leftWheelEncoder;
+
+				} else if (duck_detect_left) {
+					printf("rotate left\n");
+					state = ROTATE_LEFT;
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
 
 				} else {
 					kobukiDriveDirect(10, -10);
@@ -479,7 +534,9 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					kobukiDriveDirect(0, 0);
 					kobukiPlaySoundSequence(kobukiCleaningStart);
 					printf("Waiting for return instructions\n");
-					state = GET_RETURN;
+					distance_traveled = 0;
+					state = BACKUP;
+					new_encoder = sensors.leftWheelEncoder;
 
 				} else {
 					kobukiDriveDirect(50, 50);
@@ -489,6 +546,48 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 				break;
 			}
 
+			case BACKUP: {
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if (distance_traveled < 0.25) {
+					kobukiDriveDirect(-50, -50);
+					old_encoder = new_encoder;
+					new_encoder = sensors.leftWheelEncoder;
+					distance_traveled += measure_distance_reverse(old_encoder, new_encoder);
+					state = BACKUP;
+
+				} else {
+					kobukiDriveDirect(0, 0);
+					started_rotation = false;
+					state = GET_RETURN;
+				}
+				break;
+			}
+
+			case ROTATE_RETURN: {
+
+				if (!started_rotation) {
+					target_rotation_time = kobukiTimeToReachAngle(140);
+					start_time = time(NULL);
+					started_rotation = true;
+				}
+
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if ((time(NULL) - start_time) < target_rotation_time) {
+					kobukiTurnRightFixed();
+
+				} else {
+					state = GET_RETURN;
+					kobukiDriveDirect(0, 0);
+				}
+
+				break;
+			}
+
+
 			case GET_RETURN: {
 				
 				if (isButtonPressed(&sensors)) {
@@ -496,12 +595,9 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 				} else {
 
-					if (i < 10) {
-						if (!requestInstructions(client_fd)) {
-							goto end;
-						}
-						i++;
-					}	
+					if (!requestInstructions(client_fd)) {
+						goto end;
+					}
 
 					next_instr_ptr = NULL;
 					if (!readReturnSequence(client_fd, &next_instr_ptr)) {
@@ -510,9 +606,11 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 					if (next_instr_ptr != NULL) {
 						distance_traveled = 0;
+						new_encoder = sensors.leftWheelEncoder;
 						started_rotation = false;
 						printf("returning\n");
-						state = RETURN;
+						kobukiDriveDirect(50,50);
+						state = BOOST;
 
 					} else {
 						state = GET_RETURN;
@@ -522,6 +620,26 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 				break;
 			}
+
+			case BOOST: {
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if (distance_traveled < 0.075) {
+					kobukiDriveDirect(50, 50);
+					old_encoder = new_encoder;
+					new_encoder = sensors.leftWheelEncoder;
+					distance_traveled += measure_distance(old_encoder, new_encoder);
+					state = BOOST;
+
+				} else {
+					distance_traveled = 0;
+					started_rotation = false;
+					state = RETURN;
+				}
+				break;
+			}
+
 			
 			case RETURN: {
 
@@ -539,12 +657,24 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					
 					if (!started_rotation) {
 						started_rotation = true;
+						started_distance = false;
 						target_rotation_time = kobukiTimeToReachAngle(fabsf(next_instr_ptr->rotate_angle));
-						start_time = clock();
+						printf("Turning %f degrees, Driving %fm\n", next_instr_ptr->rotate_angle, next_instr_ptr->distance);
+						printf("Time to reach: %fms\n", target_rotation_time);
+						start_time = time(NULL);
+						if (next_instr_ptr->rotate_angle < 0) {
+							// Rotating right
+							kobukiTurnRightFixed();
+							
+						} else {
+							// Rotating left
+							kobukiTurnLeftFixed();
+						}
 						
 					}
 					
-					if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+					// if (((float)(time(NULL) - start_time) / (CLOCKS_PER_SEC/1000.0)) < target_rotation_time) {
+					if ((time(NULL) - start_time) < target_rotation_time) {
 						if (next_instr_ptr->rotate_angle < 0) {
 							// Rotating right
 							kobukiTurnRightFixed();
@@ -554,7 +684,13 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 							kobukiTurnLeftFixed();
 						}
 
-					} else if (fabsf(next_instr_ptr->distance - distance_traveled) >= 0.1) {
+					} else if (distance_traveled < next_instr_ptr->distance) {
+						if (!started_distance) {
+							started_distance = true;
+							kobukiDriveDirect(0, 0);
+							usleep(5000);
+							new_encoder = sensors.leftWheelEncoder;
+						}
 						kobukiDriveDirect(50, 50);
 						old_encoder = new_encoder;
 						new_encoder = sensors.leftWheelEncoder;
@@ -566,6 +702,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 						terminator = next_instr_ptr;
 						next_instr_ptr = next_instr_ptr->next;
 						started_rotation = false;
+						new_encoder = sensors.leftWheelEncoder;
 						free(terminator);
 						state = RETURN;
 					}

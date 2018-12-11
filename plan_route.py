@@ -123,7 +123,7 @@ def plan_route1(pcd_name, end_position, end_orientation, space_size=0.1, display
 				# look at the adjacent nodes, if they are empty, add an edge
 				for m in (i-1, i, i+1):
 					for n in (j-1, j, j+1):
-						if not (m == i and n == j) and m >= 0 and m < grid_size and n >= 0 and n < grid_size:
+						if not (m == i and n == j) and m >= 0 and m < grid_size and n >= 0 and n < grid_size and abs(m-i) + abs(n-j) < 2:
 							if grid[m, n] <= threshold_points:
 								adj_node = grid_size*m + n
 								if abs(m-i)+abs(m-j) == 2: # weight diagonal nodes higher
