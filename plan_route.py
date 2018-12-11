@@ -57,7 +57,7 @@ def plan_route(pcd_name, position_name):
 	with open(position_name, 'r') as r:
 		for line in r:
 			data.append(float(line))
-	instructions = plan_route1(pcd_name, [data[0], data[1]], data[3])
+		instructions = plan_route1(pcd_name, [data[0], data[1]], data[3])
         print(instructions)
         return instructions
 
@@ -159,13 +159,6 @@ def plan_route1(pcd_name, end_position, end_orientation, space_size=0.1, display
 	'''
 
 	instructions = []
-
-	# changing the orientation to radians
-	if end_orientation >= 0:
-		end_orientation = np.pi * end_orientation
-	else:
-		end_orientation = 2*np.pi + (end_orientation * np.pi)
-
 
 	s = shortest_path.nodes[0]
 	current_orientation = [np.cos(end_orientation), np.sin(end_orientation)]
