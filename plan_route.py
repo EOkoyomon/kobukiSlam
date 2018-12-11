@@ -151,6 +151,13 @@ def plan_route(pcd_name, end_position, end_orientation, space_size=0.1, display=
 
 	instructions = []
 
+	# changing the orientation to radians
+	if end_orientation >= 0:
+		end_orientation = np.pi * end_orientation
+	else:
+		end_orientation = 2*np.pi + (end_orientation * np.pi)
+
+
 	s = shortest_path.nodes[0]
 	current_orientation = [np.cos(end_orientation), np.sin(end_orientation)]
 	for n in shortest_path.nodes[1:]:
@@ -194,7 +201,6 @@ def plan_route(pcd_name, end_position, end_orientation, space_size=0.1, display=
 			distance = space_size * np.sqrt(2)
 		
 		# how much we need to rotate in this square, positive is counterclockwise
-		print(current_orientation)
 		rotation = rotation_angle(current_orientation, target)
 		current_orientation = target
 
