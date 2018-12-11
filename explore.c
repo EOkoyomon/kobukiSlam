@@ -30,13 +30,14 @@ typedef enum {
 	ROTATE_LEFT,
 	ROTATE_RIGHT, 
 	APPROACH, 
+	GET_RETURN, 
 	RETURN
 } robot_state_t;
 
 typedef struct route 
 {
-	float distance;
 	float rotate_angle;
+	float distance;
 	struct route *next;
 } route_t;
 
@@ -169,10 +170,16 @@ bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect
 
 }
 
+/* Must be freed after. */
+static bool requestInstructions(int client_fd) {
+
+	return false;
+}
 
 /* Must be freed after. */
-static route_t* get_return_directions(void) {
-	return NULL;
+static bool readReturnSequence(route_t** head_instruction) {
+
+	return false;
 }
 
 
@@ -196,11 +203,11 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 	bool started_rotation = false;
 	clock_t start_time = 0;
-	float target_rotation_time = kobukiTimeToReachAngleRight(90);
+	float target_rotation_time = kobukiTimeToReachAngle(90);
 	float distance_traveled = 0;
 	uint16_t old_encoder = 0;
 	uint16_t new_encoder = 0;
-	route_t * directions;
+	route_t * next_instr_ptr, *terminator;
 
 	int duck_detect_left;
 	int duck_detect_center;
@@ -218,14 +225,16 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 		// read sensors from robot
 		if (kobukiSensorPoll(&sensors) < 0) continue;
 
-		if (!read_new_instruction(client_fd, &duck_detect_left,
-						&duck_detect_center, &duck_detect_right)) {
-			// Break for now if cannot get instructions
-			break;
+		if (state != GET_RETURN && state != RETURN) {
+			if (!read_new_instruction(client_fd, &duck_detect_left,
+							&duck_detect_center, &duck_detect_right)) {
+				// Break for now if cannot get instructions
+				break;
+			}
 		}
-		i++;
+		// i++;
 		if (duck_detect_left || duck_detect_center || duck_detect_right) {
-			printf("\nNetwork reads: %d\n", i);
+			// printf("\nNetwork reads: %d\n", i);
 			printf("Duck_left:\t%d\nDuck_center:\t%d\nDuck_right:\t%d\n", duck_detect_left, duck_detect_center, duck_detect_right);
 		}
 
@@ -365,53 +374,97 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 			case APPROACH: {
 				if (isButtonPressed(&sensors)) {
 					state = OFF;
+
 				} else if (sensors.bumps_wheelDrops.bumpCenter || sensors.bumps_wheelDrops.bumpLeft || sensors.bumps_wheelDrops.bumpRight) {
 					kobukiDriveDirect(0, 0);
+					kobukiPlaySoundSequence(kobukiCleaningStart);
 					printf("Waiting for return instructions\n");
-					directions = get_return_directions();
-					printf("got directions\n");
-					state = RETURN;
-					distance_traveled = 0;
-					// total_rotated = 0;
+					state = GET_RETURN;
+
 				} else {
 					kobukiDriveDirect(50, 50);
 					state = APPROACH;
 				}
+
 				break;
 			}
 
-			case RETURN: {
-
-		/*
+			case GET_RETURN: {
+				
 				if (isButtonPressed(&sensors)) {
 					state = OFF;
 
-				} else if (directions == NULL) {
+				} else {
+
+					if (i < 5) {
+						i++;
+						requestInstructions(client_fd);
+					}	
+
+					if (readReturnSequence(&next_instr_ptr)) {
+						distance_traveled = 0;
+						printf("returning\n");
+						state = RETURN;
+
+					} else {
+						state = GET_RETURN;
+					}
+
+				}
+
+				break;
+			}
+			
+			case RETURN: {
+
+				if (isButtonPressed(&sensors)) {
+					state = OFF;
+
+				} else if (next_instr_ptr == NULL) {
+					kobukiPlaySoundSequence(kobukiCleaningEnd);
+					started_rotation = false;
+					target_rotation_time = kobukiTimeToReachAngle(90);
+					printf("YAY, WE DID IT\n");
 					state = OFF;
 
 				} else {
-					if (abs(directions->distance - distance_traveled) >= 0.1) {
+					
+					if (!started_rotation) {
+						started_rotation = true;
+						target_rotation_time = kobukiTimeToReachAngle(fabsf(next_instr_ptr->rotate_angle));
+						start_time = clock();
+						
+					}
+					
+					if (((float)(clock() - start_time) / (CLOCKS_PER_SEC*1000)) < target_rotation_time) {
+						if (next_instr_ptr->rotate_angle < 0) {
+							// Rotating right
+							kobukiTurnRightFixed();
+							
+						} else {
+							// Rotating left
+							kobukiTurnLeftFixed();
+						}
+
+					} else if (fabsf(next_instr_ptr->distance - distance_traveled) >= 0.1) {
 						kobukiDriveDirect(50, 50);
 						old_encoder = new_encoder;
 						new_encoder = sensors.leftWheelEncoder;
 						distance_traveled += measure_distance(old_encoder, new_encoder);
 
-					} else if (abs(directions->rotate_angle) >= 0.1) {
-						kobukiDriveDirect(10, -10);
-						// total_rotated = ;
-
 					} else {
-						directions = directions->next;
+						kobukiDriveDirect(0, 0);
+						distance_traveled = 0;
+						terminator = next_instr_ptr;
+						next_instr_ptr = next_instr_ptr->next;
+						started_rotation = false;
+						free(terminator);
+						state = RETURN;
 					}
-
-					state = RETURN;
 				}
-		*/
-				printf("returning\n");
-				state = OFF;
-				break;
+				
+				break;				
 			}
-			
 			// add other cases here
 
 			default: {

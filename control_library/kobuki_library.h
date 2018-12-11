@@ -25,15 +25,7 @@ bool isButtonPressed(KobukiSensors_t* sensors);
    Returned time is in ms
    Desired Angle is defined in degrees and is positive <= 180
 */
-float kobukiTimeToReachAngleRight(
-		float desiredAngle
-);
-
-/*
-   Returned time is in ms
-   Desired Angle is defined in degrees and is positive <= 180
-*/
-float kobukiTimeToReachAngleLeft(
+float kobukiTimeToReachAngle(
 		float desiredAngle
 );
 
