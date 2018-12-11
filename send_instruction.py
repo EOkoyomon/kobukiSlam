@@ -1,10 +1,10 @@
 import socket
 import struct
+import subprocess
 import sys
 import time
 from duck_detect import duck_direction
 from plan_route import plan_route
-from subprocess
 
 FOLDER = "/home/aaron/.ros/"
 POINT_CLOUD_FOLDER = "/home/aaron/catkin_ws/src/pc_data/data/"
