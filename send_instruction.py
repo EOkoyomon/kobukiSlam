@@ -79,7 +79,7 @@ if __name__ == "__main__":
 	client.connect()
 	print("Connected to " + SERVER_ADDR)
 
-	start_slam = False
+	start_mapping_back = False
 	#msg = "0,0,0"
 	while True:
 		i += 1
@@ -96,9 +96,9 @@ if __name__ == "__main__":
 			client.sendInfo([detect_left, detect_center, detect_right])
 	
 		if StartRead:
-			start_slam = client.recvSignal()
+			start_mapping_back = client.recvSignal()
 
-		if start_slam:
+		if start_mapping_back:
 			break
 	
 		time.sleep(SLEEP_INTERVAL_IN_S)
@@ -113,14 +113,22 @@ if __name__ == "__main__":
 	> saves 2 files. final_cloud.pcd, and positions.txt.
 prashanth should parse positions.txt for the x y and z and orientation, and 
 	"""
-	process = subprocess.Popen(ROS_WRITE_COMMAND, shell=True, stdout=subprocess.PIPE)
-	process.wait()
-	
-	# Get instructions - Returns a list of tuples of (angle, distance)
-	list_of_instructions = plan_route(CLOUD_FILE, POSITIONS_FILE)
+	while True:
+		if DEBUG:
+			# Turn 180 degrees, drive .28m, rotate -37.6 degrees, drive.28m, rotate 0, drive .28
+			list_of_instructions = [(180.0, 0.28), (-37.6, 0.28), (0, 0.28)]
+			client.sendInstructions(list_of_instructions)
+		else:
+			process = subprocess.Popen(ROS_WRITE_COMMAND, shell=True, stdout=subprocess.PIPE)
+			process.wait()
+			
+			# Get instructions - Returns a list of tuples of (angle, distance)
+			list_of_instructions = plan_route(CLOUD_FILE, POSITIONS_FILE)
 
-	# Send instrucitons
-	client.sendInstructions(list_of_instructions)
+			# Send instrucitons
+			client.sendInstructions(list_of_instructions)
+
+		time.sleep(SLEEP_INTERVAL_IN_S)
 
 	print("I'm done")
 	
