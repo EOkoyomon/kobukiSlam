@@ -76,7 +76,7 @@ static float measure_distance_reverse(uint16_t current_encoder, uint16_t previou
 
 
 // Returns true on success. Fills in server and client socket file descriptors.
-bool start_instruction_server(int* server_fd, int* client_fd) {
+static bool start_instruction_server(int* server_fd, int* client_fd) {
 	
 	struct sockaddr_in address;
 	int opt = 1;
@@ -130,7 +130,7 @@ bool start_instruction_server(int* server_fd, int* client_fd) {
 // Returns false if there was an error other than there just being no info
 // Info on select in http://beej.us/guide/bgnet/html/single/bgnet.html#blocking
 // Returns in the values for the variables passed in
-bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect_center, int* duck_detect_right) {
+static bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect_center, int* duck_detect_right) {
 	const int expected_bytes = 3*sizeof(int);
 	*duck_detect_left = 0, *duck_detect_center = 0, *duck_detect_right = 0;
 	char buffer[expected_bytes];
@@ -170,16 +170,116 @@ bool read_new_instruction(int client_fd, int* duck_detect_left, int* duck_detect
 
 }
 
-/* Must be freed after. */
 static bool requestInstructions(int client_fd) {
+	const int expected_bytes = sizeof(int);
+	const int signal = 249;
 
-	return false;
+	char *buffer = (char *) &signal;
+	int nbytes;
+	struct timeval tv;
+	fd_set writefds;
+
+	// Wait 5ms before timing out and returning
+	tv.tv_sec = 0;
+	tv.tv_usec = 5000;
+
+	FD_ZERO(&writefds);
+	FD_SET(client_fd, &writefds);
+
+	// Don't care about writefds and exceptfds:
+	select(client_fd+1, NULL, &writefds, NULL, &tv);
+
+	if (FD_ISSET(client_fd, &writefds)) {
+		if ((nbytes = send(client_fd, buffer, expected_bytes, 0)) <= 0) {
+			printf("Error reading from client. Connection closed.\n");
+			close(client_fd);
+			return false;
+		}
+   
+		// Will just try again 
+		if (nbytes != expected_bytes) {
+			printf("Did not send expected\n");
+			return true;
+		}
+	}
+	return true;
 }
 
-/* Must be freed after. */
-static bool readReturnSequence(route_t** head_instruction) {
+/* Must be memory from head_instruction must be freed after. */
+static bool readReturnSequence(int client_fd, route_t** head_instruction) {
+	const int expected_bytes = 2*sizeof(float);
+	char buffer[expected_bytes];
+	memset(buffer, 0, expected_bytes);
+	int n;
+	route_t **head = head_instruction;
 
-	return false;
+	struct timeval tv;
+	fd_set readfds;
+	int nbytes;
+
+	// Wait 5ms before timing out and returning
+	tv.tv_sec = 0;
+	tv.tv_usec = 5000;
+
+	FD_ZERO(&readfds);
+	FD_SET(client_fd, &readfds);
+
+	// Don't care about writefds and exceptfds:
+	select(client_fd+1, &readfds, NULL, NULL, &tv);
+
+	if (FD_ISSET(client_fd, &readfds)) {
+
+		// Wait for start sequence
+		do {
+			nbytes = recv(client_fd, buffer, sizeof(int), 0);
+			if (nbytes <= 0) {
+				printf("Error reading from client. Connection closed.\n");
+				close(client_fd);
+				return false;
+			}
+			// Will try again
+			if (nbytes != sizeof(int)) {
+				*head_instruction = NULL;
+				return true;
+			}
+		} while (*((int *) buffer) != 249);
+
+		// Get the number (n) of instructions we expect
+		if ((nbytes = recv(client_fd, buffer, sizeof(int), 0)) <= 0) {
+			printf("Error reading from client. Connection closed.\n");
+			close(client_fd);
+			return false;
+		}
+		// Will try again
+		if (nbytes != sizeof(int)) {
+			*head_instruction = NULL;
+			return true;
+		}
+		n = *((int *) buffer);
+
+		// Get n instructions in a loop
+		for (int i = 0; i < n; i+=1) {
+
+			if ((nbytes = recv(client_fd, buffer, expected_bytes, 0)) <= 0) {
+				printf("Error reading from client. Connection closed.\n");
+				close(client_fd);
+				return false;
+			}
+			// If do not receive right number, just exit and try again
+			if (nbytes != expected_bytes) {
+				*head_instruction = NULL;
+				return true;
+			}
+			*head = malloc(sizeof(route_t));
+			(*head)->rotate_angle = *((float *) buffer);
+			(*head)->distance = *(((float *) buffer)+ 1);
+			(*head)->next = NULL;
+			// The address of the next route_t
+			head = &((*head)->next);
+		}
+	}
+
+	return true;
 }
 
 
@@ -207,7 +307,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 	float distance_traveled = 0;
 	uint16_t old_encoder = 0;
 	uint16_t new_encoder = 0;
-	route_t * next_instr_ptr, *terminator;
+	route_t *next_instr_ptr = NULL, *terminator = NULL;
 
 	int duck_detect_left;
 	int duck_detect_center;
@@ -229,7 +329,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 			if (!read_new_instruction(client_fd, &duck_detect_left,
 							&duck_detect_center, &duck_detect_right)) {
 				// Break for now if cannot get instructions
-				break;
+				goto end;
 			}
 		}
 		// i++;
@@ -396,13 +496,21 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 				} else {
 
-					if (i < 5) {
+					if (i < 10) {
+						if (!requestInstructions(client_fd)) {
+							goto end;
+						}
 						i++;
-						requestInstructions(client_fd);
 					}	
 
-					if (readReturnSequence(&next_instr_ptr)) {
+					next_instr_ptr = NULL;
+					if (!readReturnSequence(client_fd, &next_instr_ptr)) {
+						goto end;
+					}
+
+					if (next_instr_ptr != NULL) {
 						distance_traveled = 0;
+						started_rotation = false;
 						printf("returning\n");
 						state = RETURN;
 
@@ -473,7 +581,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 		}
 	}
-
+	
+	end:
 	close(client_fd);
 	close(server_fd);
 	
