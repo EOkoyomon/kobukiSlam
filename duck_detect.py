@@ -77,15 +77,15 @@ def duck_center(fname, display=False):
 
     # Show image windows
 	cv2.imshow('webcam', img)
-	cv2.imshow('binary', img_binary)
-	cv2.imshow('contours', img_contours)
-	cv2.imshow('gaussian', cv2.GaussianBlur(img.copy(), (3, 3), 0))
-	cv2.imshow('median', img_filter)
+	# cv2.imshow('binary', img_binary)
+	# cv2.imshow('contours', img_contours)
+	# cv2.imshow('gaussian', cv2.GaussianBlur(img.copy(), (3, 3), 0))
+	# cv2.imshow('median', img_filter)
 	cv2.waitKey(1) 
 
 def get_latest(folder):
 	os.chdir(folder)
-	sorted_files = listing = glob.glob('*.ppm')
+	sorted_files = listing = glob.glob('*.jpg')
 	sorted_files.sort(key=os.path.getmtime)
 	latest = sorted_files[-1]
 	os.chdir('..')
