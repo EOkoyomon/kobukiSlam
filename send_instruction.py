@@ -1,3 +1,5 @@
+import binascii
+import select
 import socket
 import struct
 import subprocess
@@ -8,15 +10,14 @@ from plan_route import plan_route
 
 FOLDER = "/home/aaron/.ros/"
 POINT_CLOUD_FOLDER = "/home/aaron/catkin_ws/src/pc_data/data/"
-ROS_WRITE_COMMAND = "rosrun pc_data collector.py _path:=" + POINT_CLOUD_FOLDER
+ROS_WRITE_COMMAND = "rosrun pc_data collector.py"
 CLOUD_FILE = POINT_CLOUD_FOLDER + "final_cloud.pcd"
-POSITIONS_FILE = POINT_CLOUD_FOLDER + "positions.txt"
+POSITIONS_FILE = POINT_CLOUD_FOLDER + "final_position.txt"
 SERVER_ADDR = "10.42.0.1"
 SERVER_PORT = 8080
 SLEEP_INTERVAL_IN_S = 0.01
 i = 0
 DEBUG = True
-StartRead = False
 
 class Client():
 	def __init__(self, address, port):
@@ -28,6 +29,7 @@ class Client():
 
 		# Opens Socket (default arguments: AF_INET means we use IPv4, SOCK_STREAM means use TCP)
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+                self.start_read = False
 
 	def connect(self):
 		# Connect to Destination Machine
@@ -42,7 +44,8 @@ class Client():
 		self.socket.send(data)
 		# If center
 		if info[1]:
-			StartRead = True
+			self.start_read = True
+                        print("starting to read")
 		# if info[0] or info[1] or info[2]:
 		#	print("Network writes:", i)
 
@@ -55,12 +58,22 @@ class Client():
 
 	def recvSignal(self):
 		ready_to_read, _, _ = select.select([self.socket], [], [], 0)
-
+                print("Trying to read")
 		for sock in ready_to_read:
 			if sock == self.socket:
+                                print("Reading")
 				signal = self.socket.recv(4)
-				if int(signal) == 249:
+                                if not signal:
+                                        print("Read failed - connection closed")
+                                        exit(1)
+
+                                # int_signal = int(binascii.hexlify(signal)[::-1], 16)
+                                int_signal = struct.unpack("i", signal)[0]
+				if int_signal == 249:
+                                        print("Got the start instruction signal!")
 					return True
+                                else:
+                                        print("Wrong int my guy", int_signal)
 
 		return False
 
@@ -89,13 +102,13 @@ if __name__ == "__main__":
 			sys.stdout.flush()
 			# Gets message from stdin (user input)
 			msg = input()
-			client.sendInfo(msg.split(","))
+			client.sendInfo(msg)
 		else:
 			# Sends input (msg) to specified socket
 			detect_left, detect_center, detect_right = duck_direction(FOLDER)
 			client.sendInfo([detect_left, detect_center, detect_right])
 	
-		if StartRead:
+		if client.start_read:
 			start_mapping_back = client.recvSignal()
 
 		if start_mapping_back:
