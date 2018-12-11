@@ -52,7 +52,14 @@ def rotation_angle(current, desired):
 	angle = np.arctan2(det, dot)
 	return np.rad2deg(angle)
 
-def plan_route(pcd_name, end_position, end_orientation, space_size=0.1, display=False):
+def plan_route(pcd_name, position_name):
+	data = []
+	with open(position_name, 'r'):
+		for line in position_name:
+			data.append(float(line))
+	plan_route1(pcd_name, [data[0], data[1]], data[3])
+
+def plan_route1(pcd_name, end_position, end_orientation, space_size=0.1, display=False):
 
 	# read point cloud
 	pcd = read_point_cloud(pcd_name)
@@ -144,9 +151,9 @@ def plan_route(pcd_name, end_position, end_orientation, space_size=0.1, display=
 
 	'''
 	____________
-	_0_|_1_|_2_|
-	_3_|_4_|_5_|
-	_6_|_7_|_8_|
+	_8_|_7_|_6_|
+	_5_|_4_|_3_|
+	_2_|_1_|_0_|
 	'''
 
 	instructions = []
@@ -168,36 +175,36 @@ def plan_route(pcd_name, end_position, end_orientation, space_size=0.1, display=
 		# assume we start at 4
 
 		if n_x < s_x and n_y < s_y:
-			# 0, (-0.71, 0.71)
-			target = [-0.71, 0.71]
-			distance = space_size * np.sqrt(2)
-		elif n_x == s_x and n_y < s_y:
-			# 3, (-1, 0)
-			target = [-1, 0]
-			distance = space_size
-		elif n_x > s_x and n_y < s_y:
-			# 6, (-0.71, -0.71)
+			# 8, (-0.71, -0.71)
 			target = [-0.71, -0.71]
 			distance = space_size * np.sqrt(2)
-		elif n_x < s_x and n_y == s_y:
-			# 1, (0, 1)
-			target = [0, 1]
-			distance = space_size
-		elif n_x > s_x and n_y == s_y:
-			# 7, (0, -1)
+		elif n_x == s_x and n_y < s_y:
+			# 5, (0, -1)
 			target = [0, -1]
 			distance = space_size
-		elif n_x < s_x and n_y > s_y:
-			# 2 (0.71, 0.71)
-			target = [0.71, 0.71]
+		elif n_x > s_x and n_y < s_y:
+			# 2, (0.71, -0.71)
+			target = [0.71, -0.71]
 			distance = space_size * np.sqrt(2)
-		elif n_x == s_x and n_y > s_y:
-			# 5 (1, 0)
+		elif n_x < s_x and n_y == s_y:
+			# 7, (-1, 0)
+			target = [-1, 0]
+			distance = space_size
+		elif n_x > s_x and n_y == s_y:
+			# 1, (1, 0)
 			target = [1, 0]
 			distance = space_size
+		elif n_x < s_x and n_y > s_y:
+			# 6 (-0.71, 0.71)
+			target = [-0.71, 0.71]
+			distance = space_size * np.sqrt(2)
+		elif n_x == s_x and n_y > s_y:
+			# 3 (0, 1)
+			target = [0, 1]
+			distance = space_size
 		elif n_x > s_x and n_y > s_y:
-			# 8 (0.71, -0.71)
-			target = [0.71, -0.71]
+			# 0 (0.71, 0.71)
+			target = [0.71, 0.71]
 			distance = space_size * np.sqrt(2)
 		
 		# how much we need to rotate in this square, positive is counterclockwise
