@@ -19,12 +19,13 @@ def matprint(mat, fmt="g"):
 	col_maxes = [max([len(("{:"+fmt+"}").format(x)) for x in col]) for col in mat.T]
 	for x in mat:
 		for i, y in enumerate(x):
-			print ("{:"+str(col_maxes[i])+fmt+"}").format(y), "  ",
+			print ("{:"+str(col_maxes[i])+fmt+"}").format(y), "",
 		print("")
 
 
 # visualize occupancy grid
 def matprint2(mat, threshold_points, fmt='g'):
+        # mat = mat[20:-20, 10:-10]
 	col_maxes = [max([len(("{:"+fmt+"}").format(x)) for x in col]) for col in mat.T]
 	for j, x in enumerate(mat):
 		for i, y in enumerate(x):
@@ -43,7 +44,7 @@ def matprint2(mat, threshold_points, fmt='g'):
 				else:
 					n = ' '
 					
-			print ("{:"+str(col_maxes[i])+'s'+"}").format(n), "  ",
+			print ("{:"+str(col_maxes[i])+'s'+"}").format(n), "",
 		print("")
 
 def rotation_angle(current, desired):
@@ -61,7 +62,7 @@ def plan_route(pcd_name, position_name):
         print(instructions)
         return instructions
 
-def plan_route1(pcd_name, end_position, end_orientation, space_size=0.1, display=False):
+def plan_route1(pcd_name, end_position, end_orientation, space_size=0.15, display=True):
 
 	# read point cloud
 	pcd = read_point_cloud(pcd_name)
