@@ -49,8 +49,10 @@ static long get_ms() {
 	long ms;
 	struct timespec spec;
 
-	clock_gettime(CLOCK_REALTIME, &spec);
-	ms = round(spec.tv_nsec / 1.0e6);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+	ms = (spec.tv_sec * 1000.0) + (spec.tv_nsec / 1.0e9);
+
+	// ms = round(spec.tv_nsec / 1.0e6);
 
 	return ms;
 }
@@ -290,7 +292,7 @@ static bool readReturnSequence(int client_fd, route_t** head_instruction) {
 				return false;
 			}
 			(*head)->rotate_angle = *((float *) buffer);
-			(*head)->distance = *(((float *) buffer)+ 1);
+			(*head)->distance = (*(((float *) buffer)+ 1)) * 0.95;
 			(*head)->next = NULL;
 			// The address of the next route_t
 			head = &((*head)->next);
@@ -429,9 +431,10 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 			case ROTATING: {
 
 				if (!started_rotation) {
-					start_time = time(NULL);
+					start_time = get_ms(); // # time(NULL);
 					printf("Target_rotation_time: %fms\n", target_rotation_time);
-					printf("Start time: %lu\n", time(NULL));
+					// printf("Start time: %lu\n", time(NULL));
+					printf("Start time: %lu\n", get_ms());
 					started_rotation = true;
 				}
 
@@ -458,14 +461,16 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					started_rotation = false;
 
 				// } else if (((float)(clock() - start_time) / (CLOCKS_PER_SEC/1000.0)) < target_rotation_time) {
-				} else if ((time(NULL) - start_time) < target_rotation_time) {
+				// } else if ((time(NULL) - start_time) < target_rotation_time) {
+				} else if ((get_ms() - start_time) < target_rotation_time) {
 					kobukiTurnRightFixed();
 
 				} else {
 					printf("driving straight\n");
 					state = DRIVE_STRAIGHT;
 					new_encoder = sensors.leftWheelEncoder;
-					printf("End time: %lu\n", time(NULL));
+					// printf("End time: %lu\n", time(NULL));
+					printf("End time: %lu\n", get_ms());
 					kobukiDriveDirect(0, 0);
 					started_rotation = false;
 				}
@@ -569,14 +574,15 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 
 				if (!started_rotation) {
 					target_rotation_time = kobukiTimeToReachAngle(140);
-					start_time = time(NULL);
+					start_time = get_ms(); // time(NULL);
 					started_rotation = true;
 				}
 
 				if (isButtonPressed(&sensors)) {
 					state = OFF;
 
-				} else if ((time(NULL) - start_time) < target_rotation_time) {
+				// } else if ((time(NULL) - start_time) < target_rotation_time) {
+				} else if ((get_ms() - start_time) < target_rotation_time) {
 					kobukiTurnRightFixed();
 
 				} else {
@@ -625,7 +631,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 				if (isButtonPressed(&sensors)) {
 					state = OFF;
 
-				} else if (distance_traveled < 0.075) {
+				} else if (distance_traveled < 0.04) {
 					kobukiDriveDirect(50, 50);
 					old_encoder = new_encoder;
 					new_encoder = sensors.leftWheelEncoder;
@@ -661,7 +667,7 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 						target_rotation_time = kobukiTimeToReachAngle(fabsf(next_instr_ptr->rotate_angle));
 						printf("Turning %f degrees, Driving %fm\n", next_instr_ptr->rotate_angle, next_instr_ptr->distance);
 						printf("Time to reach: %fms\n", target_rotation_time);
-						start_time = time(NULL);
+						start_time = get_ms(); // time(NULL);
 						if (next_instr_ptr->rotate_angle < 0) {
 							// Rotating right
 							kobukiTurnRightFixed();
@@ -674,7 +680,8 @@ int main(void) { // to start the kinect recorder, lets try putting the function 
 					}
 					
 					// if (((float)(time(NULL) - start_time) / (CLOCKS_PER_SEC/1000.0)) < target_rotation_time) {
-					if ((time(NULL) - start_time) < target_rotation_time) {
+					// if ((time(NULL) - start_time) < target_rotation_time) {
+					 if ((get_ms() - start_time) < target_rotation_time) {
 						if (next_instr_ptr->rotate_angle < 0) {
 							// Rotating right
 							kobukiTurnRightFixed();
